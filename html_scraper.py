@@ -3,10 +3,9 @@ import bs4
 import os
 import urllib.request
 import fnmatch
-import pandas as pd
 
 urls = [] # Lista stron glosowan
-list_link = [] # Lista wszystkich linkow ze stron glosowan
+list_link = [] # Lista wszystkich linkow ze stron glosowan1
 
 
 # Partie w 9 kadencji sejmu 2019-2023
@@ -38,44 +37,51 @@ niez = []
 #             url_string_new = url_string_old
 
 
+# for link in soup.find_all('a'):
+#     list_link.append(link.get('href'))
+
+
+# for link in list_link:
+#     if fnmatch.fnmatch(link, 'http://orka.sejm.gov.pl*'):
+#         urls.append(url_string_new)
+#         url_string_new = url_string_old
+#     else:
+#         pass
+
 
 def get_urls(posiedzenia, glosowania):
-    while(True):
-        for i in range(1, posiedzenia + 1):
-            url_string_new = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
-            url_string_old = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
+    for i in range(1, posiedzenia + 1):
+        url_string_new = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
+        url_string_old = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
 
-            for j in range(1, glosowania + 1):
-                url_string_new += str(j)
+        for j in range(1, glosowania + 1):
+            url_string_new += str(j)
+
+            print(url_string_new)
+            soup = bs4.BeautifulSoup(requests.get(url_string_new, verify=True).text, 'html.parser')
+
+            for link in soup.find_all(class_='pdf'):
                 urls.append(url_string_new)
 
-                soup = bs4.BeautifulSoup(requests.get(url_string_new, verify=True).text, 'html.parser')
-                soup.find_all(link.get('HREF'))
+            if link not in soup.find_all(class_='pdf'):
+                break
 
-                for link in soup.find_all('a'):
-                    list_link.append(link.get('href'))
-
-
-                url_string_new = url_string_old
+            url_string_new = url_string_old
 
 
-
-
-
-
-
-posiedzenia = 10
-glosowania = 300
+posiedzenia = 3
+glosowania = 10
 
 get_urls(posiedzenia, glosowania)
 
-home_link = 'sejm.gov.pl/Sejm9.nsf/'
+
+home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
 
 for url in urls:
     soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
 
-    # nr_posiedzenia = url[url.index('NrPosiedzenia='):url.index('&NrGlosowania')].strip("NrPosiedzenia=")
-    # nr_glosowania = url[url.index('NrGlosowania='):].strip("NrGlosowania=")
+    nr_posiedzenia = url[url.index('NrPosiedzenia='):url.index('&NrGlosowania')].strip("NrPosiedzenia=")
+    nr_glosowania = url[url.index('NrGlosowania='):].strip("NrGlosowania=")
 
     for link in soup.find_all('a'):
         list_link.append(link.get('href'))
@@ -116,5 +122,5 @@ for url in urls:
             pass
 
 
-for url in urls:
+for url in PiS:
     print(url)
