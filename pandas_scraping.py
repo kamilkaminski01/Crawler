@@ -2,10 +2,29 @@ import pandas as pd
 import bs4
 import requests
 
+# Ustawienie ograniczen na wyswietlenie kolumn i wierszy na brak
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+
+# Pobranie danych z linku, 'encoding' wazne, aby przeczytac polskie znaki
 url = 'https://sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=klubglos&IdGlosowania=53744&KodKlubu=PiS'
-# soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
-# table = soup.find_all('table')
+df = pd.read_html(url, encoding='utf-8')[0]
 
-df = pd.read_html(url)
+# Usuniecie z pierwszej części tabeli, drugą część tabeli
+df1 = df.drop(['Lp..1', 'Nazwisko i imię.1', 'Głos.1'], axis=1)
 
-print(df[0])
+# Ustawienie drugą część tabeli i zmiana nazwy kolumn, aby mozna bylo dołączyć do siebie obie części
+df2 = df[['Lp..1','Nazwisko i imię.1','Głos.1']]
+df2 = df2.rename(columns={'Lp..1':'Lp.', 'Nazwisko i imię.1':'Nazwisko i imię','Głos.1':'Głos'})
+
+# Utworzenie jednej tabeli, posortowanie po 'Lp.', usunięcie wierszy które mają same NULLe i
+# ustawienie kolumny 'Lp.' z floatów na inty
+new_df = df1.append(df2)
+new_df = new_df.sort_values(by='Lp.',ignore_index=True)
+new_df = new_df.dropna(how='all')
+new_df['Lp.'] = new_df['Lp.'].astype(int)
+
+print(new_df.info())
+
+# Zapisanie tabeli do pliku csv
+new_df.to_csv('glosowanie.csv', encoding='utf-8')
