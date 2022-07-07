@@ -25,29 +25,6 @@ PPS = [] # PPS, Polska Parta Socjalistyczna
 PS = [] # PS, Polskie Sprawy
 niez = []
 
-"""
-# def get_urls(posiedzenia, glosowania):
-#     for i in range(1, posiedzenia + 1):
-#         url_string_new = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
-#         url_string_old = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
-#
-#         for j in range(1, glosowania + 1):
-#             url_string_new += str(j)
-#             urls.append(url_string_new)
-#             url_string_new = url_string_old
-
-# for link in soup.find_all('a'):
-#     list_link.append(link.get('href'))
-
-
-# for link in list_link:
-#     if fnmatch.fnmatch(link, 'http://orka.sejm.gov.pl*'):
-#         urls.append(url_string_new)
-#         url_string_new = url_string_old
-#     else:
-#         pass
-"""
-
 
 def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
     # Pobranie danych z linku, 'encoding' wazne, aby przeczytac polskie znaki
