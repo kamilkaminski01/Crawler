@@ -5,8 +5,8 @@ import pandas as pd
 import os
 import time
 
-urls = [] # Lista stron glosowan
-links = [] # Lista wszystkich linkow ze stron glosowan
+urls = [] # Lista stron głosowań
+url_links = [] # Lista wszystkich linków ze stron głosowań
 vote_links = [] # Lista glosowan posłów partii na glosowaniu
 
 # Partie w 9 kadencji sejmu 2019-2023
@@ -25,24 +25,29 @@ PPS = [] # PPS, Polska Parta Socjalistyczna
 PS = [] # PS, Polskie Sprawy
 niez = []
 
-
+# Funckja do przekształcenia tabeli i pobranie jej do pliku csv
 def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
-    # Pobranie danych z linku, 'encoding' wazne, aby przeczytac polskie znaki
-    df = pd.read_html(url, encoding='utf-8')[0]
+    # Pobranie tabeli o zerowym indeksie ze strony. 'encoding' ważne, aby przeczytać polskie znaki
+    dataframe = pd.read_html(url, encoding='utf-8')[0]
 
-    # Usuniecie z pierwszej części tabeli, drugą część tabeli
-    df1 = df.drop(['Lp..1', 'Nazwisko i imię.1', 'Głos.1'], axis=1)
+    # Usuniecie z pierwszej(lewej) części tabeli drugą(prawą) część tabeli
+    dataframe_left = dataframe.drop(['Lp..1', 'Nazwisko i imię.1', 'Głos.1'], axis=1)
 
-    # Ustawienie drugą część tabeli i zmiana nazwy kolumn, aby mozna bylo dołączyć do siebie obie części
-    df2 = df[['Lp..1', 'Nazwisko i imię.1', 'Głos.1']]
-    df2 = df2.rename(columns={'Lp..1': 'Lp.', 'Nazwisko i imię.1': 'Nazwisko i imię', 'Głos.1': 'Głos'})
+    # Ustawienie drugą część tabeli i zmiana nazwy kolumn, aby można bylo dołączyć do siebie obie części
+    dataframe_right = dataframe[['Lp..1', 'Nazwisko i imię.1', 'Głos.1']]
+    dataframe_right = dataframe_right.rename(columns={'Lp..1': 'Lp.', 'Nazwisko i imię.1': 'Nazwisko i imię', 'Głos.1': 'Głos'})
 
     # Utworzenie jednej tabeli, posortowanie po 'Lp.', usunięcie wierszy które mają same NULLe i
     # ustawienie kolumny 'Lp.' z floatów na inty
-    new_df = df1.append(df2)
-    new_df = new_df.sort_values(by='Lp.', ignore_index=True)
-    new_df = new_df.dropna(how='all')
-    new_df['Lp.'] = new_df['Lp.'].astype(int)
+    joined_dataframe = dataframe_left.append(dataframe_right)
+    joined_dataframe = joined_dataframe.sort_values(by='Lp.', ignore_index=True)
+    joined_dataframe = joined_dataframe.dropna(how='all')
+    joined_dataframe['Lp.'] = joined_dataframe['Lp.'].astype(int)
+
+    # Podzielenie kolumny Nazwisko i imię na kolumne nazwisko i kolumnę imię
+    joined_dataframe[['Nazwisko', 'Imie']] = joined_dataframe['Nazwisko i imię'].str.split(' ', 1, expand=True)
+    del joined_dataframe['Nazwisko i imię']
+    joined_dataframe = joined_dataframe[['Lp.','Nazwisko', 'Imie', 'Głos']]
 
     # Zapisanie tabeli do pliku csv bez indeksu z tytulem header
     header = 'glosowanie' + partia + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
@@ -51,10 +56,10 @@ def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
 
-    return new_df.to_csv(header, encoding='utf-8', index=False)
+    return joined_dataframe.to_csv(header, encoding='utf-8', index=False)
 
 
-# Zapisanie wszystkich linkow z poszczegolnymi posiedzeniami oraz glosowaniami na posiedzaniach do listy urls
+# Zapisanie wszystkich linków głosowań z posiedzeń do listy urls
 def get_urls(posiedzenia, glosowania):
     for i in range(1, posiedzenia+1):
         url_string_new = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
@@ -66,34 +71,41 @@ def get_urls(posiedzenia, glosowania):
             # Wczytanie strony
             soup = bs4.BeautifulSoup(requests.get(url_string_new, verify=True).text, 'html.parser')
 
-            # Wyszukiwanie na stronie linku z klasą 'pdf'
+            # Wyszukiwanie na stronie linku z klasą 'pdf' i dodanie jej do listy urls
             for link in soup.find_all(class_='pdf'):
                 print(url_string_new)
                 urls.append(url_string_new)
 
-            # Jeśli nie znaleziono linku z klasą 'pdf' na stronie, koniec pętli
+            # Jeśli nie znaleziono linku z klasą 'pdf' na stronie, koniec pętli i przejście do następnego posiedzenia
             if link not in soup.find_all(class_='pdf'): break
             url_string_new = url_string_old
+
 
 def get_voting():
     home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
 
     for url in urls:
+        # Wczytanie strony
         soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
 
         nr_posiedzenia = url[url.index('NrPosiedzenia='):url.index('&NrGlosowania')].strip("NrPosiedzenia=")
         nr_glosowania = url[url.index('NrGlosowania='):].strip("NrGlosowania=")
 
-        # Wyszukiwanie na stronie wszystkich linkow i dodanie do listy linkow
-        for link in soup.find_all('a'): links.append(link.get('href'))
+        # Wyszukiwanie i połączenie opisów głosowań
+        opis_glosowania_list = []
+        for p in soup.find_all(class_='subbig'): opis_glosowania_list.append(p.get_text())
+        opis_glosowania = ' - '.join(opis_glosowania_list)
 
-        # Wyszukiwanie na stronie linku glosowanie partii i dodanie do listy glosowan partii
-        for link in links:
+        # Wyszukiwanie na stronie wszystkich linków i dodanie do listy linków
+        for link in soup.find_all('a'): url_links.append(link.get('href'))
+
+        # Wyszukiwanie na stronie linku z głosowania danej partii
+        for link in url_links:
             if fnmatch.fnmatch(link, '*agent.xsp?symbol=klubglos&IdGlosowania=*'): vote_links.append(link)
 
         # Filtrowanie linków do poszczególnych list partii
         for link in vote_links:
-            # while True:
+            while True:
                 try:
                     link = home_link + link
                     if fnmatch.fnmatch(link, '*KodKlubu=PiS'):
@@ -110,8 +122,8 @@ def get_voting():
                         to_csv(link, partia, nr_posiedzenia, nr_glosowania)
                     elif fnmatch.fnmatch(link, '*KodKlubu=SLD'):
                         partia = 'SLD'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
                         SLD.append(link)
+                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
                     elif fnmatch.fnmatch(link, '*KodKlubu=PSL'):
                         PSL.append(link)
                         partia = 'PSL'
@@ -153,24 +165,25 @@ def get_voting():
                         partia = 'niez'
                         to_csv(link, partia, nr_posiedzenia, nr_glosowania)
 
-                except(NameError, AttributeError):
-                    # ,ConnectionResetError
-                    # time.sleep(3)
-                    pass
-                # break
+                # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 3 sekundach
+                except(NameError, AttributeError, ConnectionResetError):
+                    print("Rozłączyło połącznie, ponawiam pobranie")
+                    time.sleep(3)
+                    continue
+                break
 
 
-posiedzenia = 57
-glosowania = 2
+posiedzenia = 1
+glosowania = 1
 get_urls(posiedzenia, glosowania)
 
 print("Sprawdzam i pobieram glosowania partii...")
+start_time = time.time()
 get_voting()
 print("Pobrane")
+print("Zajelo: ",time.time() - start_time)
 
 
-# start_time = time.time()
-# print("Zajelo: ",time.time() - start_time)
 
 """
 print(PiS[1])

@@ -13,7 +13,9 @@ mycursor = db.cursor()
 # mycursor.execute("INSERT INTO person (name, age) VALUES (%s,%s)",("Joe",22))
 # mycursor.execute("DELETE FROM person WHERE personID = 2")
 # db.commit()
-mycursor.execute("SELECT * FROM person")
+# mycursor.execute("SELECT * FROM person")
+
+mycursor.execute("DROP TABLE person")
 
 for x in mycursor:
     print(x)
