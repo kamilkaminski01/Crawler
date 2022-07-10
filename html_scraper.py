@@ -9,24 +9,25 @@ urls = [] # Lista stron głosowań
 url_links = [] # Lista wszystkich linków ze stron głosowań
 vote_links = [] # Lista glosowan posłów partii na glosowaniu
 
-# Partie w 9 kadencji sejmu 2019-2023
-PiS = [] # PiS, Prawo i Sprawiedliwosc
-KO = [] # KO, Koalicja Obywatelska
-Lewica = [] # Lewica
-KP = [] # KP, Koalicja Polska
-SLD = [] # SLD, Sojusz Lewicy Demokratycznej
-PSL = [] # PSL, Polskie Stronnictwo Ludowe
-PSL_Kukiz = [] #
-Kukiz = [] # Kukiz'15
-Konfederacja = [] # Konfederacja
-Polska = [] # Polska2050
-Porozumienie = [] # Porozumienie, Porozumienie Jaroslawa Gowina
-PPS = [] # PPS, Polska Parta Socjalistyczna
-PS = [] # PS, Polskie Sprawy
-niez = []
+partie = [
+    '*KodKlubu=PiS',
+    '*KodKlubu=KO',
+    '*KodKlubu=Lewica',
+    '*KodKlubu=SLD',
+    '*KodKlubu=PSL',
+    '*KodKlubu=PSL-Kukiz15',
+    '*KodKlubu=Kukiz15',
+    '*KodKlubu=Konfederacja',
+    '*KodKlubu=KP',
+    '*KodKlubu=Polska2050',
+    '*KodKlubu=Porozumienie',
+    '*KodKlubu=PPS',
+    '*KodKlubu=PS',
+    '*KodKlubu=niez.'
+]
 
 # Funckja do przekształcenia tabeli i pobranie jej do pliku csv
-def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
+def to_csv(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     # Pobranie tabeli o zerowym indeksie ze strony. 'encoding' ważne, aby przeczytać polskie znaki
     dataframe = pd.read_html(url, encoding='utf-8')[0]
 
@@ -39,7 +40,7 @@ def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
 
     # Utworzenie jednej tabeli, posortowanie po 'Lp.', usunięcie wierszy które mają same NULLe i
     # ustawienie kolumny 'Lp.' z floatów na inty
-    joined_dataframe = dataframe_left.append(dataframe_right)
+    joined_dataframe = pd.concat([dataframe_left, dataframe_right])
     joined_dataframe = joined_dataframe.sort_values(by='Lp.', ignore_index=True)
     joined_dataframe = joined_dataframe.dropna(how='all')
     joined_dataframe['Lp.'] = joined_dataframe['Lp.'].astype(int)
@@ -50,7 +51,7 @@ def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
     joined_dataframe = joined_dataframe[['Lp.','Nazwisko', 'Imie', 'Głos']]
 
     # Zapisanie tabeli do pliku csv bez indeksu z tytulem header
-    header = 'glosowanie' + partia + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
+    header = 'glosowanie' + nazwa_partii + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
     path = '/Users/kamilkaminski/Downloads/Scraping/'
 
     if not os.path.exists(path): os.makedirs(path)
@@ -62,6 +63,10 @@ def to_csv(url, partia, nr_posiedzenia, nr_glosowania):
 # Zapisanie wszystkich linków głosowań z posiedzeń do listy urls
 def get_urls(posiedzenia, glosowania):
     for i in range(1, posiedzenia+1):
+
+        # Zmienna do zweryfkiwania przeskoku głosowania, np. głosowanie 41, głosowanie 42, głosowanie 44
+        verifier = 0
+
         url_string_new = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
         url_string_old = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=' + str(i) + '&NrGlosowania='
 
@@ -75,9 +80,11 @@ def get_urls(posiedzenia, glosowania):
             for link in soup.find_all(class_='pdf'):
                 print(url_string_new)
                 urls.append(url_string_new)
+                # Jeśli nie znaleziono linku z klasą 'pdf' na stronie, zwiększenie zmiennej verifier o 1
+                if link not in soup.find_all(class_='pdf'): verifier += 1
 
-            # Jeśli nie znaleziono linku z klasą 'pdf' na stronie, koniec pętli i przejście do następnego posiedzenia
-            if link not in soup.find_all(class_='pdf'): break
+            # Jeśli po 5 próbach nie znaleziono kolejnej strony, koniec poszukiwania na danym posiedzeniu
+            if verifier == 5: break
             url_string_new = url_string_old
 
 
@@ -108,62 +115,12 @@ def get_voting():
             while True:
                 try:
                     link = home_link + link
-                    if fnmatch.fnmatch(link, '*KodKlubu=PiS'):
-                        PiS.append(link)
-                        partia = 'PiS'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=KO'):
-                        KO.append(link)
-                        partia = 'KO'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=Lewica'):
-                        Lewica.append(link)
-                        partia = 'Lewica'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=SLD'):
-                        partia = 'SLD'
-                        SLD.append(link)
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=PSL'):
-                        PSL.append(link)
-                        partia = 'PSL'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=PSL-Kukiz15'):
-                        PSL_Kukiz.append(link)
-                        partia = 'PSL-Kukiz'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=Kukiz15'):
-                        Kukiz.append(link)
-                        partia = 'Kukiz15'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=Konfederacja'):
-                        Konfederacja.append(link)
-                        partia = 'Konfederacja'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=KP'):
-                        KP.append(link)
-                        partia = 'KP'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=Polska2050'):
-                        Polska.append(link)
-                        partia = 'Polska'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=Porozumienie'):
-                        Porozumienie.append(link)
-                        partia = 'Porozumienie'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=PPS'):
-                        PPS.append(link)
-                        partia = 'PPS'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=PS'):
-                        PS.append(link)
-                        partia = 'PS'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
-                    elif fnmatch.fnmatch(link, '*KodKlubu=niez.'):
-                        niez.append(link)
-                        partia = 'niez'
-                        to_csv(link, partia, nr_posiedzenia, nr_glosowania)
+                    for partia in partie:
+                        if fnmatch.fnmatch(link, partia):
+                            # Wychwycenie nazwy partii
+                            nazwa_partii = link[link.index("KodKlubu="):]
+                            nazwa_partii = nazwa_partii[nazwa_partii.index("="):].strip("=")
+                            to_csv(link, nazwa_partii, nr_posiedzenia, nr_glosowania)
 
                 # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 3 sekundach
                 except(NameError, AttributeError, ConnectionResetError):
@@ -173,8 +130,8 @@ def get_voting():
                 break
 
 
-posiedzenia = 1
-glosowania = 1
+posiedzenia = 3
+glosowania = 3
 get_urls(posiedzenia, glosowania)
 
 print("Sprawdzam i pobieram glosowania partii...")
@@ -182,24 +139,3 @@ start_time = time.time()
 get_voting()
 print("Pobrane")
 print("Zajelo: ",time.time() - start_time)
-
-
-
-"""
-print(PiS[1])
-print(KO[1])
-print(Lewica[1])
-print(KP[1])
-print(SLD[1])
-print(PSL[1])
-print(PSL_Kukiz[1])
-print(Kukiz[1])
-print(Konfederacja[1])
-print(Polska[1])
-print(Porozumienie[1])
-print(PPS[1])
-print(PS[1])
-print(niez[1])
-"""
-
-
