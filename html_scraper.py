@@ -6,10 +6,6 @@ import os
 import time
 import mysql_database as mysql
 
-urls = [] # Lista stron głosowań
-url_links = [] # Lista wszystkich linków ze stron głosowań
-vote_links = [] # Lista glosowan posłów partii na glosowaniu
-
 partie = [
     '*KodKlubu=PiS',
     '*KodKlubu=KO',
@@ -29,6 +25,9 @@ partie = [
 
 partie_sql = []
 opisy_sql = []
+
+# Lista stron głosowań
+urls = []
 
 url_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
 url_glosowania = '&NrGlosowania='
@@ -119,16 +118,17 @@ def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     joined_dataframe = joined_dataframe[['Lp.','Nazwisko', 'Imie', 'Głos']]
 
     # Zapisanie tabeli do pliku csv bez indeksu z tytulem header
-    header = 'glosowanie' + nazwa_partii + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
+    header = nazwa_partii + '-' + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
 
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
 
     return joined_dataframe.to_csv(header, encoding='utf-8', index=False)
+    # return joined_dataframe
 
 # Zapisanie wszystkich linków głosowań z posiedzeń do listy urls
 def get_urls(posiedzenia, glosowania):
-    for i in range(1, posiedzenia+1):
+    for i in range(39, posiedzenia+1):
 
         # Zmienna do zweryfkiwania przeskoku głosowania, np. głosowanie 41, głosowanie 42, głosowanie 44
         verifier = 0
@@ -155,6 +155,9 @@ def get_urls(posiedzenia, glosowania):
 
 def get_voting():
     for url in urls:
+        url_links = []  # Lista wszystkich linków ze stron głosowań
+        vote_links = []  # Lista glosowan posłów partii na glosowaniu
+
         # Wczytanie strony
         soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
 
@@ -176,13 +179,15 @@ def get_voting():
         for link in vote_links:
             while True:
                 try:
-                    link = home_link + link
+                    temp_link = home_link + link
                     for partia in partie:
-                        if fnmatch.fnmatch(link, partia):
+                        if fnmatch.fnmatch(temp_link, partia):
                             # Wychwycenie nazwy partii
                             nazwa_partii = get_partie(partia)
 
-                            get_dataframe(link, nazwa_partii, nr_posiedzenia, nr_glosowania)
+                            print("Pobieram partie: posiedzenie "+nr_posiedzenia+" glosowanie "+nr_glosowania+ " partia "+nazwa_partii)
+                            get_dataframe(temp_link, nazwa_partii, nr_posiedzenia, nr_glosowania)
+
                 # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 6 sekundach
                 except(NameError, AttributeError, ConnectionResetError):
                     print("Rozłączyło połączenie, ponawiam pobranie")
@@ -191,8 +196,8 @@ def get_voting():
                 break
 
 
-posiedzenia = 3
-glosowania = 3
+posiedzenia = 10
+glosowania = 2
 get_urls(posiedzenia, glosowania)
 
 print("Sprawdzam i pobieram glosowania partii...")
