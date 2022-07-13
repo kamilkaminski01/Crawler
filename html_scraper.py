@@ -4,7 +4,6 @@ import fnmatch
 import pandas as pd
 import os
 import time
-import mysql_database as mysql
 
 partie = [
     '*KodKlubu=PiS',
@@ -33,12 +32,69 @@ url_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania
 url_glosowania = '&NrGlosowania='
 path = '/Users/kamilkaminski/Downloads/Scraping/'
 home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
+voting_partii_string = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
+url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKadencji=9'
+
+# Funkcja do wychwycenia numeru posiedzenia i daty posiedzeń
+def get_posiedzenia(url_posiedzenia):
+    miesiace = {
+        'stycznia': '01',
+        'lutego': '02',
+        'marca': '03',
+        'kwietnia': '04',
+        'maja': '05',
+        'czerwca': '06',
+        'lipca': '07',
+        'sierpnia': '08',
+        'września': '09',
+        'października': '10',
+        'listopada': '11',
+        'grudnia': '12'
+    }
+
+    # Wczytanie tabeli ze strony
+    dataframe = pd.read_html(url_posiedzen, encoding='utf-8')[0]
+    # Usunięcie niepotrzebnych kolumn i zmiana nazwy pozostałych kolumn
+    dataframe = dataframe.drop(['Liczba głosowań', 'Unnamed: 3'], axis=1)
+    dataframe = dataframe.rename(columns={'Nr pos. Sejmu': 'nr_posiedzenia', 'Data pos. Sejmu': 'data'})
+
+    # Uzupełnienie miejsc NULLow na poprzedzające go wartości, w tym wypadku numery posiedzeń
+    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].fillna(method='ffill')
+    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
+    # dataframe = dataframe.sort_values(by='nr_posiedzenia', ignore_index=True)
+
+    # Zwrócenie wszystkich dat w kolumnie 'data' do listy
+    date_list = dataframe['data'].tolist()
+    new_date_list = []
+
+    # Modyfikacja każdej daty w liście do formatu YYYY-MMMM-DDDD
+    for date in date_list:
+        date = date.strip(' r.')
+        date = date.replace(' ', '-')
+        for word, replacment in miesiace.items(): date = date.replace(word, replacment)
+        if len(date) == 9: date = '0'+date
+
+        year = date[date.index('-')+4:]
+        month = date[date.index('-'):date.index('-')+4].strip('-')
+        day = date[:date.index('-')]
+        date = year + '-' + month + '-' + day
+
+        new_date_list.append(date)
+
+    # Ustawienie nowej kolumny z listy z przekształconymi datami
+    date_column = dataframe.columns[1]
+    dataframe = dataframe.drop(date_column, axis=1)
+    dataframe[date_column] = new_date_list
+
+    # Zmiana typu kolumny data z object(string) na date
+    dataframe['data'] = pd.to_datetime(dataframe['data'])
+
+    return dataframe.to_csv('posiedzenia.csv', index=False)
 
 # Funkcja do wychwycenia nazwy partii
 def get_partie(partia):
     nazwa = partia[partia.index("*KodKlubu="):]
     nazwa = nazwa[nazwa.index("="):].strip("=")
-
     return nazwa
 
 # Funkcja do wyszukiwania i połączenia opisów głosowań
@@ -46,7 +102,6 @@ def get_opis(soup):
     list = []
     for p in soup.find_all(class_='subbig'): list.append(p.get_text())
     opis_glosowania = ' - '.join(list)
-
     return opis_glosowania
 
 # Funkcja do przekształcenia innego radzaju występującej tabeli
@@ -90,7 +145,6 @@ def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     path = '/Users/kamilkaminski/Downloads/Scraping/'
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
-
     return dataframe.to_csv(header, encoding='utf-8', index=False)
 
 # Funckja do przekształcenia tabeli
@@ -98,12 +152,13 @@ def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     # Pobranie tabeli o zerowym indeksie ze strony. 'encoding' ważne, aby przeczytać polskie znaki
     dataframe = pd.read_html(url, encoding='utf-8')[0]
 
-    # Usuniecie z pierwszej(lewej) części tabeli drugą(prawą) część tabeli
+    # Usuniecie z pierwszej(lewej) części tabeli drugą(prawą) część tabeli i zmiana nazwy kolumn
     dataframe_left = dataframe.drop(['Lp..1', 'Nazwisko i imię.1', 'Głos.1'], axis=1)
+    dataframe_left = dataframe_left.rename(columns={'Nazwisko i imię': 'nazwisko i imie', 'Głos': 'glos'})
 
     # Ustawienie drugą część tabeli i zmiana nazwy kolumn, aby można bylo dołączyć do siebie obie części
     dataframe_right = dataframe[['Lp..1', 'Nazwisko i imię.1', 'Głos.1']]
-    dataframe_right = dataframe_right.rename(columns={'Lp..1': 'Lp.', 'Nazwisko i imię.1': 'Nazwisko i imię', 'Głos.1': 'Głos'})
+    dataframe_right = dataframe_right.rename(columns={'Lp..1': 'Lp.', 'Nazwisko i imię.1': 'nazwisko i imie', 'Głos.1': 'glos'})
 
     # Utworzenie jednej tabeli, posortowanie po 'Lp.', usunięcie wierszy które mają same NULLe i
     # ustawienie kolumny 'Lp.' z floatów na inty
@@ -113,22 +168,21 @@ def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     joined_dataframe['Lp.'] = joined_dataframe['Lp.'].astype(int)
 
     # Podzielenie kolumny Nazwisko i imię na kolumne nazwisko i kolumnę imię
-    joined_dataframe[['Nazwisko', 'Imie']] = joined_dataframe['Nazwisko i imię'].str.split(' ', 1, expand=True)
-    del joined_dataframe['Nazwisko i imię']
-    joined_dataframe = joined_dataframe[['Lp.','Nazwisko', 'Imie', 'Głos']]
+    joined_dataframe[['nazwisko', 'imie']] = joined_dataframe['nazwisko i imie'].str.split(' ', 1, expand=True)
+    del joined_dataframe['nazwisko i imie']
+    joined_dataframe = joined_dataframe[['Lp.','nazwisko', 'imie', 'glos']]
 
     # Zapisanie tabeli do pliku csv bez indeksu z tytulem header
     header = nazwa_partii + '-' + str(nr_posiedzenia) + '_' + str(nr_glosowania) + '.csv'
 
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
-
     return joined_dataframe.to_csv(header, encoding='utf-8', index=False)
-    # return joined_dataframe
+    # return dataframe.to_csv('glosowanietest.csv', index=False)
 
 # Zapisanie wszystkich linków głosowań z posiedzeń do listy urls
 def get_urls(posiedzenia, glosowania):
-    for i in range(39, posiedzenia+1):
+    for i in range(1, posiedzenia+1):
 
         # Zmienna do zweryfkiwania przeskoku głosowania, np. głosowanie 41, głosowanie 42, głosowanie 44
         verifier = 0
@@ -153,6 +207,7 @@ def get_urls(posiedzenia, glosowania):
             if verifier == 5: break
             url_string_new = url_string_old
 
+#
 def get_voting():
     for url in urls:
         url_links = []  # Lista wszystkich linków ze stron głosowań
@@ -173,9 +228,9 @@ def get_voting():
 
         # Wyszukiwanie na stronie linku z głosowania danej partii
         for link in url_links:
-            if fnmatch.fnmatch(link, '*agent.xsp?symbol=klubglos&IdGlosowania=*'): vote_links.append(link)
+            if fnmatch.fnmatch(link, voting_partii_string): vote_links.append(link)
 
-        # Filtrowanie linków do poszczególnych list partii
+        # Filtrowanie linków do poszczególnych głosowań partii
         for link in vote_links:
             while True:
                 try:
@@ -196,13 +251,13 @@ def get_voting():
                 break
 
 
-posiedzenia = 10
+posiedzenia = 1
 glosowania = 2
-get_urls(posiedzenia, glosowania)
 
-print("Sprawdzam i pobieram glosowania partii...")
-get_voting()
-print("Pobrane")
+# get_urls(posiedzenia, glosowania)
+#
+# print("Sprawdzam i pobieram glosowania partii...")
+# get_voting()
+# print("Pobrane")
 
-# start_time = time.time()
-# print("Zajelo: ",time.time() - start_time)
+# get_posiedzenia(url_posiedzen)

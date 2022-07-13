@@ -1,5 +1,4 @@
 import mysql.connector
-# import html_scraper
 
 db = mysql.connector.connect(
     host = "localhost",
@@ -10,21 +9,29 @@ db = mysql.connector.connect(
 
 mycursor = db.cursor()
 
+
 sql_partie = '''CREATE TABLE partie (
                 id_partia int PRIMARY KEY AUTO_INCREMENT, 
                 nazwa VARCHAR(20) NOT NULL)'''
 
 sql_poslowie = '''CREATE TABLE poslowie (
-                id_posel int PRIMARY KEY AUTO_INCREMENT, 
-                id_partia int, FOREIGN KEY (id_partia) REFERENCES partie(id_partia), 
-                imie VARCHAR(30) NOT NULL, nazwisko VARCHAR(30) NOT NULL)'''
+                id_posel int PRIMARY KEY AUTO_INCREMENT,
+                imie VARCHAR(30) NOT NULL, 
+                nazwisko VARCHAR(30) NOT NULL)'''
+
+sql_posiedzenia = '''CREATE TABLE posiedzenia (
+                    id_posiedzenia int PRIMARY KEY AUTO_INCREMENT,
+                    nr_posiedzenia int NOT NULL,
+                    data DATE NOT NULL)'''
 
 
-# sql = "INSERT INTO partie(nazwa) VALUES (%s)",nazwa
-# mysql.mycursor.execute(sql)
-# mysql.db.commit()
-
+# mycursor.execute(sql_partie)
 # mycursor.execute(sql_poslowie)
+# mycursor.execute(sql_posiedzenia)
+
+mycursor.execute(sql_poslowie)
+
+db.commit()
 
 # mycursor.execute("SHOW TABLES")
 # for x in mycursor:
