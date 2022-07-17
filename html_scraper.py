@@ -6,37 +6,38 @@ import os
 import time
 
 partie = [
-    '*KodKlubu=PiS',
-    '*KodKlubu=KO',
-    '*KodKlubu=Lewica',
-    '*KodKlubu=SLD',
-    '*KodKlubu=PSL',
-    '*KodKlubu=PSL-Kukiz15',
-    '*KodKlubu=Kukiz15',
-    '*KodKlubu=Konfederacja',
-    '*KodKlubu=KP',
-    '*KodKlubu=Polska2050',
-    '*KodKlubu=Porozumienie',
-    '*KodKlubu=PPS',
-    '*KodKlubu=PS',
-    '*KodKlubu=niez.'
+    'PiS',
+    'KO',
+    'Lewica',
+    'SLD',
+    'PSL',
+    'PSL-Kukiz15',
+    'Kukiz15',
+    'Konfederacja',
+    'KP',
+    'Polska2050',
+    'Porozumienie',
+    'PPS',
+    'PS',
+    'niez.'
 ]
 
-partie_sql = []
-opisy_sql = []
+# sql_list_opisy = []
+sql_list_daty_glosowan = []
 
-# Lista stron głosowań
-urls = []
+urls = [] # Lista stron głosowań
+id_posiedzen_list = [] # Lista ID posiedzeń
 
-url_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
-url_glosowania = '&NrGlosowania='
+url_nr_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
+url_nr_glosowania = '&NrGlosowania='
 path = '/Users/kamilkaminski/Downloads/Scraping/'
-home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
-voting_partii_string = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
+url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
+url_glosowania_partii = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
 url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKadencji=9'
+url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia='
 
-# Funkcja do wychwycenia numeru posiedzenia i daty posiedzeń
-def get_posiedzenia(url_posiedzenia):
+# Funkcja do wychwycenia id, numeru i daty posiedzeń
+def get_posiedzenia():
     miesiace = {
         'stycznia': '01',
         'lutego': '02',
@@ -51,6 +52,16 @@ def get_posiedzenia(url_posiedzenia):
         'listopada': '11',
         'grudnia': '12'
     }
+
+    # Wczytanie strony ze zmiennej url_posiedzen
+    soup = bs4.BeautifulSoup(requests.get(url_posiedzen, verify=True).text, 'html.parser')
+
+    # Wyszukiwanie linków dat posiedzeń i pobranie od nich ID
+    for link in soup.find_all('a'):
+        link = link.get('href')
+        if fnmatch.fnmatch(link, '*IdDnia=*'):
+            link = link[link.index('IdDnia='):].strip('IdDnia=')
+            id_posiedzen_list.append(link)
 
     # Wczytanie tabeli ze strony
     dataframe = pd.read_html(url_posiedzen, encoding='utf-8')[0]
@@ -86,23 +97,62 @@ def get_posiedzenia(url_posiedzenia):
     dataframe = dataframe.drop(date_column, axis=1)
     dataframe[date_column] = new_date_list
 
-    # Zmiana typu kolumny data z object(string) na date
-    dataframe['data'] = pd.to_datetime(dataframe['data'])
+    # Dodanie kolumny 'id_posiedzenia' z poszczególnymi id posiedzień
+    dataframe['id_posiedzenia'] = id_posiedzen_list
+    dataframe = dataframe[['id_posiedzenia', 'nr_posiedzenia', 'data']]
 
-    return dataframe.to_csv('posiedzenia.csv', index=False)
+    # Zmiana typu kolumny nr_posiedzenia i id_posiedzenia ze string na int
+    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
+    dataframe['id_posiedzenia'] = dataframe['id_posiedzenia'].astype(int)
 
-# Funkcja do wychwycenia nazwy partii
-def get_partie(partia):
-    nazwa = partia[partia.index("*KodKlubu="):]
-    nazwa = nazwa[nazwa.index("="):].strip("=")
-    return nazwa
+    # return dataframe.to_csv('posiedzenia.csv', index=False)
+    return dataframe
 
-# Funkcja do wyszukiwania i połączenia opisów głosowań
-def get_opis(soup):
-    list = []
-    for p in soup.find_all(class_='subbig'): list.append(p.get_text())
-    opis_glosowania = ' - '.join(list)
-    return opis_glosowania
+# Funkcja do wychwycenia numerów, opisów głosowań i przypisanie im ich id_posiedzeń
+def get_glosowania():
+    global url_glosowan
+    # Utworzenie pustego dataframe'u z kolumnami id_posiedzenia, nr_glosowania, opis
+    column_names = ['id_glosowania', 'id_posiedzenia', 'nr_glosowania', 'opis']
+    joined_dataframe = pd.DataFrame(columns=column_names)
+
+    # Z listy ID posiedzeń z funkcji get_posiedzenia, przejście po każdym posiedzeniu
+    for id in id_posiedzen_list:
+        url_glosowan += id
+
+        # Pobranie tabeli z głosowaniami i usunięcie kolumny 'Godzina'
+        dataframe = pd.read_html(url_glosowan, encoding='utf-8')[0]
+        del dataframe['Godzina']
+
+        # Zmiana nazwy kolumn z 'Nr' na 'nr_glosowania', 'Temat' na 'opis'
+        dataframe = dataframe.rename(columns={'Nr': 'nr_glosowania', 'Temat': 'opis'})
+        # Wstawienie w kolumnie o 0-owym indeksie id posiedzenia
+        dataframe.insert(1, 'id_posiedzenia', id)
+
+        # Dodanie do ostatecznego dataframe'u głosowania z posiedzeń
+        joined_dataframe = joined_dataframe.append(dataframe)
+        url_glosowan = url_glosowan.strip(id)
+
+    # Ustawienie kolumn id_posiedzenia i nr_glosowania na ze string na int
+    joined_dataframe['id_posiedzenia'] = joined_dataframe['id_posiedzenia'].astype(int)
+    joined_dataframe['nr_glosowania'] = joined_dataframe['nr_glosowania'].astype(int)
+
+    # return joined_dataframe.to_csv('glosowanie.csv', index=False)
+    return joined_dataframe
+
+
+def get_date(soup):
+    for small in soup.find_all('small'):
+        full_date = small.get_text().strip('dnia ')
+        date = full_date[:full_date.index(' r.')]
+
+        year = date[date.index('-')+4:]
+        month = date[date.index('-'):date.index('-')+4].strip('-')
+        day = date[:date.index('-')]
+
+        date = year+'-'+month+'-'+day
+        # hour = full_date[full_date.index('godz. '):].strip('godz. ')
+    sql_list_daty_glosowan.append(date)
+    return date
 
 # Funkcja do przekształcenia innego radzaju występującej tabeli
 def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
@@ -177,41 +227,39 @@ def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
 
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
+
     return joined_dataframe.to_csv(header, encoding='utf-8', index=False)
-    # return dataframe.to_csv('glosowanietest.csv', index=False)
 
 # Zapisanie wszystkich linków głosowań z posiedzeń do listy urls
 def get_urls(posiedzenia, glosowania):
     for i in range(1, posiedzenia+1):
-
         # Zmienna do zweryfkiwania przeskoku głosowania, np. głosowanie 41, głosowanie 42, głosowanie 44
         verifier = 0
 
-        url_string_old = url_posiedzenia + str(i) + url_glosowania
-        url_string_new = url_posiedzenia + str(i) + url_glosowania
+        url_old = url_nr_posiedzenia + str(i) + url_nr_glosowania
+        url_new = url_nr_posiedzenia + str(i) + url_nr_glosowania
 
         for j in range(1, glosowania+1):
-            url_string_new += str(j)
+            url_new += str(j)
 
             # Wczytanie strony
-            soup = bs4.BeautifulSoup(requests.get(url_string_new, verify=True).text, 'html.parser')
+            soup = bs4.BeautifulSoup(requests.get(url_new, verify=True).text, 'html.parser')
 
             # Wyszukiwanie na stronie linku z klasą 'pdf' i dodanie jej do listy urls
             for link in soup.find_all(class_='pdf'):
-                print(url_string_new)
-                urls.append(url_string_new)
+                print(url_new)
+                urls.append(url_new)
                 # Jeśli nie znaleziono linku z klasą 'pdf' na stronie, zwiększenie zmiennej verifier o 1
                 if link not in soup.find_all(class_='pdf'): verifier += 1
 
             # Jeśli po 5 próbach nie znaleziono kolejnej strony, koniec poszukiwania na danym posiedzeniu
             if verifier == 5: break
-            url_string_new = url_string_old
+            url_new = url_old
 
 #
 def get_voting():
     for url in urls:
-        url_links = []  # Lista wszystkich linków ze stron głosowań
-        vote_links = []  # Lista glosowan posłów partii na glosowaniu
+        vote_links = []  # Lista głosowań posłów partii na głosowaniu
 
         # Wczytanie strony
         soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
@@ -219,45 +267,34 @@ def get_voting():
         nr_posiedzenia = url[url.index('NrPosiedzenia='):url.index('&NrGlosowania')].strip("NrPosiedzenia=")
         nr_glosowania = url[url.index('NrGlosowania='):].strip("NrGlosowania=")
 
-        # Wychywcenie opisów głosowań
-        opis = get_opis(soup)
-        opisy_sql.append(opis)
+        # Wychywcenie opisu i daty głosowania
+        # opis = get_opis(soup)
+        # data = get_date(soup)
 
-        # Wyszukiwanie na stronie wszystkich linków i dodanie do listy linków
-        for link in soup.find_all('a'): url_links.append(link.get('href'))
-
-        # Wyszukiwanie na stronie linku z głosowania danej partii
-        for link in url_links:
-            if fnmatch.fnmatch(link, voting_partii_string): vote_links.append(link)
+        # Wyszukiwanie na stronie wszystkich linków z głosowań partii i dodanie do listy linków
+        for link in soup.find_all('a'):
+            link = link.get('href')
+            if fnmatch.fnmatch(link, url_glosowania_partii): vote_links.append(link)
 
         # Filtrowanie linków do poszczególnych głosowań partii
         for link in vote_links:
             while True:
                 try:
-                    temp_link = home_link + link
+                    temp_link = url_home_link + link
                     for partia in partie:
-                        if fnmatch.fnmatch(temp_link, partia):
-                            # Wychwycenie nazwy partii
-                            nazwa_partii = get_partie(partia)
-
-                            print("Pobieram partie: posiedzenie "+nr_posiedzenia+" glosowanie "+nr_glosowania+ " partia "+nazwa_partii)
-                            get_dataframe(temp_link, nazwa_partii, nr_posiedzenia, nr_glosowania)
-
-                # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 6 sekundach
+                        temp_partia = '*' + partia
+                        if fnmatch.fnmatch(temp_link, temp_partia):
+                            print("Pobieram partie: "+partia+" posiedzenie: "+nr_posiedzenia+" glosowanie: "+nr_glosowania)
+                            get_dataframe(temp_link, partia, nr_posiedzenia, nr_glosowania)
+                # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 5 sekundach
                 except(NameError, AttributeError, ConnectionResetError):
                     print("Rozłączyło połączenie, ponawiam pobranie")
-                    time.sleep(6)
+                    time.sleep(5)
                     continue
                 break
 
 
-posiedzenia = 1
-glosowania = 2
+posiedzenia = 2
+glosowania = 1
 
 # get_urls(posiedzenia, glosowania)
-#
-# print("Sprawdzam i pobieram glosowania partii...")
-# get_voting()
-# print("Pobrane")
-
-# get_posiedzenia(url_posiedzen)
