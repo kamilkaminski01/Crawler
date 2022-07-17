@@ -35,6 +35,7 @@ url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
 url_glosowania_partii = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
 url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKadencji=9'
 url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia='
+url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -112,7 +113,8 @@ def get_posiedzenia():
 def get_glosowania():
     global url_glosowan
     # Utworzenie pustego dataframe'u z kolumnami id_posiedzenia, nr_glosowania, opis
-    column_names = ['id_glosowania', 'id_posiedzenia', 'nr_glosowania', 'opis']
+    # column_names = ['id_glosowania', 'id_posiedzenia', 'nr_glosowania', 'opis']
+    column_names = ['id_posiedzenia', 'nr_glosowania', 'opis']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
     # Z listy ID posiedzeń z funkcji get_posiedzenia, przejście po każdym posiedzeniu
@@ -129,17 +131,18 @@ def get_glosowania():
         dataframe.insert(1, 'id_posiedzenia', id)
 
         # Dodanie do ostatecznego dataframe'u głosowania z posiedzeń
-        joined_dataframe = joined_dataframe.append(dataframe)
+        # joined_dataframe = joined_dataframe.append(dataframe)
+        joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
         url_glosowan = url_glosowan.strip(id)
 
-    # Ustawienie kolumn id_posiedzenia i nr_glosowania na ze string na int
+    # Zmiana typu kolumny id_posiedzenia i nr_glosowania ze string na int
     joined_dataframe['id_posiedzenia'] = joined_dataframe['id_posiedzenia'].astype(int)
     joined_dataframe['nr_glosowania'] = joined_dataframe['nr_glosowania'].astype(int)
 
     # return joined_dataframe.to_csv('glosowanie.csv', index=False)
     return joined_dataframe
 
-
+#
 def get_date(soup):
     for small in soup.find_all('small'):
         full_date = small.get_text().strip('dnia ')
@@ -153,6 +156,17 @@ def get_date(soup):
         # hour = full_date[full_date.index('godz. '):].strip('godz. ')
     sql_list_daty_glosowan.append(date)
     return date
+
+# Funkcja do wychywcenia posłów
+def get_poslowie():
+    soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
+
+    for posel in soup.find_all(class_='deputyName'):
+        posel = posel.get_text()
+        print(posel)
+
+
+
 
 # Funkcja do przekształcenia innego radzaju występującej tabeli
 def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
@@ -298,3 +312,7 @@ posiedzenia = 2
 glosowania = 1
 
 # get_urls(posiedzenia, glosowania)
+# get_posiedzenia()
+# get_glosowania()
+# get_voting()
+get_poslowie()
