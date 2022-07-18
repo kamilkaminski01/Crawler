@@ -94,7 +94,9 @@ def insert_posel(cursor, id_posel, imie, nazwisko):
 
 def execute_poslowie():
     for index, row in poslowie_dataframe.iterrows():
+        # Jeśli poseł istnieje w bazie danych, przejście dalej
         if posel_exists(cursor, row['id_posel']): pass
+        # Jeśłi poseł nie istnieje w bazie danych, dodanie rzędu
         else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
 
 # execute_partie()

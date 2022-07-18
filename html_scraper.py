@@ -4,6 +4,10 @@ import fnmatch
 import pandas as pd
 import os
 import time
+from mysql_database import *
+
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 
 partie = [
     'PiS',
@@ -147,8 +151,9 @@ def get_poslowie():
 
     def get_name(full_name):
         if full_name.count(' ') == 1: return full_name.split(' ')[0]
-        return ' '.join(full_name.split(" ", 2)[:2])
-    def get_lat_name(full_name):
+        return ' '.join(full_name.split(' ', 2)[:2])
+
+    def get_last_name(full_name):
         if full_name.count(' ') == 1: return full_name.split(' ')[1]
         return full_name.split(' ')[2]
 
@@ -156,7 +161,6 @@ def get_poslowie():
     dataframe = pd.DataFrame(columns=column_names)
     names = []
     last_names = []
-
 
     soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
 
@@ -174,8 +178,8 @@ def get_poslowie():
                 full_name = full_name.get_text()
 
                 name = get_name(full_name)
-                last_name = get_lat_name(full_name)
                 names.append(name)
+                last_name = get_last_name(full_name)
                 last_names.append(last_name)
                 id_poslow_list.append(id)
     # Ustawienie list jako kolumny w dataframe'ie
@@ -185,6 +189,41 @@ def get_poslowie():
 
     # return dataframe.to_csv('poslowie.csv', index=False)
     return dataframe
+
+#
+def get_glosy():
+
+    def get_database_glosowania():
+        sql = '''SELECT * FROM glosowania'''
+        table = pd.read_sql(sql, db)
+        return table
+    # def did_vote():
+
+
+    glosowania_database_table = get_database_glosowania()
+
+    for id_posel in id_poslow_list:
+        url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl=' + id_posel
+        soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
+
+        for link in soup.find_all('a'):
+            link = link.get('href')
+
+            if fnmatch.fnmatch(link, '*IdDnia=*'):
+                temp_link = url_home_link + link
+                # soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
+
+                id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=').as_type(int)
+
+                for index, row in glosowania_database_table.iterrows():
+                    if row['id_posiedzenia'] == id_posiedzenia:
+                        print(id_posel)
+                        print(id_posiedzenia)
+                        dataframe = pd.read_html(temp_link, encoding='utf-8', index=False)
+                        print(dataframe)
+                        print()
+
+
 
 '''
 def get_date(soup):
@@ -349,4 +388,5 @@ glosowania = 1
 # get_posiedzenia()
 # get_glosowania()
 # get_voting()
-# get_poslowie()
+get_poslowie()
+get_glosy()
