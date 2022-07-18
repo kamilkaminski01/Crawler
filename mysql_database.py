@@ -12,10 +12,11 @@ db = mysql.connector.connect(
 cursor = db.cursor()
 # posiedzenia_dataframe = get_posiedzenia()
 # glosowania_dataframe = get_glosowania()
+# poslowie_dataframe = get_poslowie()
 
 
 create_table_partie = '''CREATE TABLE partie (id_partia int PRIMARY KEY AUTO_INCREMENT, nazwa VARCHAR(20) NOT NULL)'''
-create_table_poslowie = '''CREATE TABLE poslowie (id_posel int PRIMARY KEY AUTO_INCREMENT, imie VARCHAR(30) NOT NULL, nazwisko VARCHAR(30) NOT NULL)'''
+create_table_poslowie = '''CREATE TABLE poslowie (id_posel int PRIMARY KEY, imie VARCHAR(30) NOT NULL, nazwisko VARCHAR(30) NOT NULL)'''
 create_table_posiedzenia = '''CREATE TABLE posiedzenia (id_posiedzenia int PRIMARY KEY, nr_posiedzenia int NOT NULL, data DATE NOT NULL)'''
 create_table_glosowania = '''CREATE TABLE glosowania (id_glosowania int PRIMARY KEY AUTO_INCREMENT, id_posiedzenia int NOT NULL, 
                             nr_glosowania int NOT NULL,opis VARCHAR(2000) NOT NULL, FOREIGN KEY(id_posiedzenia) REFERENCES posiedzenia(id_posiedzenia))'''
@@ -79,20 +80,31 @@ def execute_partie():
         # Jeśli partia nie istnieje w bazie danych, dodanie rzędu
         else: insert_partie(cursor, partia)
 
+# Funkcja do sprawdzenia czy posel istnieje w bazie danych na podstawie ID
+def posel_exists(cursor, id_posel):
+    query = ('''SELECT id_posel from poslowie WHERE id_posel = %s''')
+    cursor.execute(query, (id_posel,))
+    return cursor.fetchone() is not None
 
+# Funkcja do wstawienia danych o pośle
+def insert_posel(cursor, id_posel, imie, nazwisko):
+    insert_into_poslowie = ('''INSERT INTO poslowie (id_posel, imie, nazwisko) VALUES (%s,%s,%s)''')
+    row_to_insert = (id_posel, imie, nazwisko)
+    cursor.execute(insert_into_poslowie, row_to_insert)
 
+def execute_poslowie():
+    for index, row in poslowie_dataframe.iterrows():
+        if posel_exists(cursor, row['id_posel']): pass
+        else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
 
 # execute_partie()
 # execute_posiedzenia()
 # execute_glosowania()
+# execute_poslowie()
 
 # cursor.execute(create_table_partie)
 # cursor.execute(create_table_poslowie)
 # cursor.execute(create_table_posiedzenia)
 # cursor.execute(create_table_glosowania)
 
-db.commit()
-
-# cursor.execute("SHOW TABLES")
-# for x in cursor:
-#     print(x)
+# db.commit()

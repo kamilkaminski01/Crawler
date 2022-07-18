@@ -22,20 +22,20 @@ partie = [
     'niez.'
 ]
 
-# sql_list_opisy = []
-sql_list_daty_glosowan = []
-
 urls = [] # Lista stron głosowań
 id_posiedzen_list = [] # Lista ID posiedzeń
+id_poslow_list = []
 
 url_nr_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
 url_nr_glosowania = '&NrGlosowania='
 path = '/Users/kamilkaminski/Downloads/Scraping/'
 url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
+url_home_link2 = 'https://www.sejm.gov.pl'
 url_glosowania_partii = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
 url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKadencji=9'
 url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia='
 url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
+url_posla = '*posel.xsp?id=*'
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -142,7 +142,51 @@ def get_glosowania():
     # return joined_dataframe.to_csv('glosowanie.csv', index=False)
     return joined_dataframe
 
-#
+# Funkcja do wychywcenia id, imiona i nazwiska posłów
+def get_poslowie():
+
+    def get_name(full_name):
+        if full_name.count(' ') == 1: return full_name.split(' ')[0]
+        return ' '.join(full_name.split(" ", 2)[:2])
+    def get_lat_name(full_name):
+        if full_name.count(' ') == 1: return full_name.split(' ')[1]
+        return full_name.split(' ')[2]
+
+    column_names = ['id_posel', 'imie', 'nazwisko']
+    dataframe = pd.DataFrame(columns=column_names)
+    names = []
+    last_names = []
+
+
+    soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
+
+    # Wychywcenie ID posłów z linków
+    for link in soup.find_all('a'):
+        link = link.get('href')
+        if fnmatch.fnmatch(link, url_posla):
+            id = link[link.index('id='):link.index('&')].strip('id=')
+
+            # Wychwycenie imion wszystkich posłów
+            link = url_home_link2 + link
+            soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
+
+            for full_name in soup.find_all('h1'):
+                full_name = full_name.get_text()
+
+                name = get_name(full_name)
+                last_name = get_lat_name(full_name)
+                names.append(name)
+                last_names.append(last_name)
+                id_poslow_list.append(id)
+    # Ustawienie list jako kolumny w dataframe'ie
+    dataframe['id_posel'] = id_poslow_list
+    dataframe['imie'] = names
+    dataframe['nazwisko'] = last_names
+
+    # return dataframe.to_csv('poslowie.csv', index=False)
+    return dataframe
+
+'''
 def get_date(soup):
     for small in soup.find_all('small'):
         full_date = small.get_text().strip('dnia ')
@@ -156,17 +200,6 @@ def get_date(soup):
         # hour = full_date[full_date.index('godz. '):].strip('godz. ')
     sql_list_daty_glosowan.append(date)
     return date
-
-# Funkcja do wychywcenia posłów
-def get_poslowie():
-    soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
-
-    for posel in soup.find_all(class_='deputyName'):
-        posel = posel.get_text()
-        print(posel)
-
-
-
 
 # Funkcja do przekształcenia innego radzaju występującej tabeli
 def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
@@ -210,6 +243,7 @@ def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
     return dataframe.to_csv(header, encoding='utf-8', index=False)
+'''
 
 # Funckja do przekształcenia tabeli
 def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
@@ -299,7 +333,7 @@ def get_voting():
                         temp_partia = '*' + partia
                         if fnmatch.fnmatch(temp_link, temp_partia):
                             print("Pobieram partie: "+partia+" posiedzenie: "+nr_posiedzenia+" glosowanie: "+nr_glosowania)
-                            get_dataframe(temp_link, partia, nr_posiedzenia, nr_glosowania)
+                            # get_dataframe(temp_link, partia, nr_posiedzenia, nr_glosowania)
                 # Powtórzenie dodania linku w przypadku błędu ConnectionResetError po 5 sekundach
                 except(NameError, AttributeError, ConnectionResetError):
                     print("Rozłączyło połączenie, ponawiam pobranie")
@@ -315,4 +349,4 @@ glosowania = 1
 # get_posiedzenia()
 # get_glosowania()
 # get_voting()
-get_poslowie()
+# get_poslowie()
