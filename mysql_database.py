@@ -10,17 +10,21 @@ db = mysql.connector.connect(
 )
 
 cursor = db.cursor()
+# partie = get_partie()
 # posiedzenia_dataframe = get_posiedzenia()
 # glosowania_dataframe = get_glosowania()
 # poslowie_dataframe = get_poslowie()
+# glosy_dataframe = get_glosy()
 
 
-create_table_partie = '''CREATE TABLE partie (id_partia int PRIMARY KEY AUTO_INCREMENT, nazwa VARCHAR(20) NOT NULL)'''
+create_table_partie = '''CREATE TABLE partie (id_partia int PRIMARY KEY AUTO_INCREMENT, nazwa VARCHAR(50) NOT NULL)'''
 create_table_poslowie = '''CREATE TABLE poslowie (id_posel int PRIMARY KEY, imie VARCHAR(30) NOT NULL, nazwisko VARCHAR(30) NOT NULL)'''
 create_table_posiedzenia = '''CREATE TABLE posiedzenia (id_posiedzenia int PRIMARY KEY, nr_posiedzenia int NOT NULL, data DATE NOT NULL)'''
 create_table_glosowania = '''CREATE TABLE glosowania (id_glosowania int PRIMARY KEY AUTO_INCREMENT, id_posiedzenia int NOT NULL, 
                             nr_glosowania int NOT NULL,opis VARCHAR(2000) NOT NULL, FOREIGN KEY(id_posiedzenia) REFERENCES posiedzenia(id_posiedzenia))'''
-
+create_table_glosy = '''CREATE TABLE glosy (id_glos int PRIMARY KEY AUTO_INCREMENT, id_posel int NOT NULL, id_glosowania int NOT NULL,
+                        glos ENUM('Za', 'Przeciw', 'Wstrzymał się', 'Nie głosował', 'Głos oddany na listę') NOT NULL, FOREIGN KEY(id_posel) REFERENCES poslowie(id_posel),
+                        FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
 
 # Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
 def posiedzenie_exists(cursor, id_posiedzenia):
@@ -83,7 +87,7 @@ def execute_partie():
 
 # Funkcja do sprawdzenia czy posel istnieje w bazie danych na podstawie ID
 def posel_exists(cursor, id_posel):
-    query = ('''SELECT id_posel from poslowie WHERE id_posel = %s''')
+    query = ('''SELECT id_posel FROM poslowie WHERE id_posel = %s''')
     cursor.execute(query, (id_posel,))
     return cursor.fetchone() is not None
 
@@ -93,6 +97,7 @@ def insert_posel(cursor, id_posel, imie, nazwisko):
     row_to_insert = (id_posel, imie, nazwisko)
     cursor.execute(insert_into_poslowie, row_to_insert)
 
+# Wstawienie posłów do bazy danych
 def execute_poslowie():
     for index, row in poslowie_dataframe.iterrows():
         # Jeśli poseł istnieje w bazie danych, przejście dalej
@@ -100,14 +105,37 @@ def execute_poslowie():
         # Jeśłi poseł nie istnieje w bazie danych, dodanie rzędu
         else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
 
+# Funkcja do sprawdzenia czy głos posła istnieje w bazie danych na podstawie id posła i id głosowania
+def glos_exists(cursor, id_posel, id_glosowania):
+    query = ('''SELECT id_posel, id_glosowania FROM glosy WHERE id_posel = %s and id_glosowania = %s''')
+    row_to_insert = (id_posel, id_glosowania)
+    cursor.execute(query, row_to_insert)
+    return cursor.fetchone() is not None
+
+# Funkcja do wstawienia danych o głosie
+def insert_glos(cursor, id_posel, id_glosowania, glos):
+    insert_into_glosy = ('''INSERT INTO glosy SET id_posel = (SELECT id_posel FROM poslowie WHERE id_posel = %s), 
+                            id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), glos = %s''')
+    row_to_insert = (id_posel, id_glosowania, glos)
+    cursor.execute(insert_into_glosy, row_to_insert)
+
+# Wstawienie głosów do bazy danych
+def execute_glosy():
+    for index, row in glosy_dataframe.iterrows():
+        if glos_exists(cursor, row['id_posel'], row['id_glosowania']): pass
+        else: insert_glos(cursor, row['id_posel'], row['id_glosowania'], row['glos'])
+
+
 # execute_partie()
 # execute_posiedzenia()
 # execute_glosowania()
 # execute_poslowie()
+# execute_glosy()
 
 # cursor.execute(create_table_partie)
 # cursor.execute(create_table_poslowie)
 # cursor.execute(create_table_posiedzenia)
 # cursor.execute(create_table_glosowania)
+# cursor.execute(create_table_glosy)
 
 # db.commit()

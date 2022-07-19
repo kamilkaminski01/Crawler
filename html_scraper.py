@@ -2,33 +2,38 @@ import requests
 import bs4
 import fnmatch
 import pandas as pd
-import os
+import mysql.connector
 import time
-from mysql_database import *
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
-partie = [
-    'PiS',
-    'KO',
-    'Lewica',
-    'SLD',
-    'PSL',
-    'PSL-Kukiz15',
-    'Kukiz15',
-    'Konfederacja',
-    'KP',
-    'Polska2050',
-    'Porozumienie',
-    'PPS',
-    'PS',
-    'niez.'
-]
+# partie = [
+#     'PiS',
+#     'KO',
+#     'Lewica',
+#     'SLD',
+#     'PSL',
+#     'PSL-Kukiz15',
+#     'Kukiz15',
+#     'Konfederacja',
+#     'KP',
+#     'Polska2050',
+#     'Porozumienie',
+#     'PPS',
+#     'PS',
+#     'niez.'
+# ]
 
-urls = [] # Lista stron głosowań
-id_posiedzen_list = [] # Lista ID posiedzeń
-id_poslow_list = []
+db = mysql.connector.connect(
+    host = "localhost",
+    user = "root",
+    passwd = "kamil123",
+    database = "testdatabase"
+)
+
+id_posiedzen_list = [] # Lista ID wszystkich posiedzeń
+id_poslow_list = [] # Lista ID wszystkich posłów
 
 url_partie = 'https://www.sejm.gov.pl/Sejm9.nsf/kluby.xsp'
 url_nr_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
@@ -45,11 +50,18 @@ url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrK
 
 # Funkcja do wychywcenia partii
 def get_partie():
+    nazwy_partii = []
+
     soup = bs4.BeautifulSoup(requests.get(url_partie, verify=True).text, 'html.parser')
 
     for link in soup.find_all('a'):
         link = link.get('href')
-        if fnmatch.fnmatch(link, '/Sejm9.nsf/klubposlowie.xsp?klub=*'): print(link)
+        if fnmatch.fnmatch(link, '/Sejm9.nsf/klubposlowie.xsp?klub=*'):
+            nazwa = link[link.index('klub='):].strip('klub=')
+
+            if nazwa not in nazwy_partii: nazwy_partii.append(nazwa)
+
+    return nazwy_partii
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -127,7 +139,6 @@ def get_posiedzenia():
 def get_glosowania():
     global url_glosowan
     # Utworzenie pustego dataframe'u z kolumnami id_posiedzenia, nr_glosowania, opis
-    # column_names = ['id_glosowania', 'id_posiedzenia', 'nr_glosowania', 'opis']
     column_names = ['id_posiedzenia', 'nr_glosowania', 'opis']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
@@ -145,7 +156,6 @@ def get_glosowania():
         dataframe.insert(1, 'id_posiedzenia', id)
 
         # Dodanie do ostatecznego dataframe'u głosowania z posiedzeń
-        # joined_dataframe = joined_dataframe.append(dataframe)
         joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
         url_glosowan = url_glosowan.strip(id)
 
@@ -267,28 +277,14 @@ def get_glosy():
                 counter += 1
                 # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
                 joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-                if counter == 1000: break
-            if counter == 1000: break
-        if counter == 1000: break
+                if counter == 50: break
+            if counter == 50: break
+        if counter == 50: break
         url_glos_posla = url_glos_posla.strip(id_posel)
     # return joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
 
 '''
-def get_date(soup):
-    for small in soup.find_all('small'):
-        full_date = small.get_text().strip('dnia ')
-        date = full_date[:full_date.index(' r.')]
-
-        year = date[date.index('-')+4:]
-        month = date[date.index('-'):date.index('-')+4].strip('-')
-        day = date[:date.index('-')]
-
-        date = year+'-'+month+'-'+day
-        # hour = full_date[full_date.index('godz. '):].strip('godz. ')
-    sql_list_daty_glosowan.append(date)
-    return date
-
 # Funkcja do przekształcenia innego radzaju występującej tabeli
 def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     # Pobranie tabeli o pierwszym indeksie ze strony
@@ -331,7 +327,6 @@ def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     if not os.path.exists(path): os.makedirs(path)
     os.chdir(path)
     return dataframe.to_csv(header, encoding='utf-8', index=False)
-'''
 
 # Funkcja do przekształcenia tabeli
 def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
@@ -429,14 +424,18 @@ def get_voting():
                     continue
                 break
 
-
 posiedzenia = 2
 glosowania = 1
 
 # get_urls(posiedzenia, glosowania)
-get_partie()
+# get_voting()
+'''
+
+# start = time.time()
+# get_partie()
 # get_posiedzenia()
 # get_glosowania()
-# get_voting()
 # get_poslowie()
 # get_glosy()
+# end = time.time()
+# print("Zajęło: " + str(end-start))
