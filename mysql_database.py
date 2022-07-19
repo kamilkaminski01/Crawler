@@ -43,9 +43,10 @@ def execute_posiedzenia():
         else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
 
 # Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu
-def glosowanie_exists(cursor, opis):
-    query = ('''SELECT opis FROM glosowania WHERE opis = %s''')
-    cursor.execute(query, (opis,))
+def glosowanie_exists(cursor, nr_glosowania, opis):
+    query = ('''SELECT nr_glosowania, opis FROM glosowania WHERE nr_glosowania = %s AND opis = %s''')
+    row_to_insert = (nr_glosowania, opis)
+    cursor.execute(query, row_to_insert)
     return cursor.fetchone() is not None
 
 # Funkcja do wstawienia danych o głosowaniu
@@ -57,7 +58,7 @@ def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
 # Wstawianie głosowań do bazy danych
 def execute_glosowania():
     for index, row in glosowania_dataframe.iterrows():
-        if glosowanie_exists(cursor, row['opis']): pass
+        if glosowanie_exists(cursor, row['nr_glosowania'], row['opis']): pass
         else: insert_glosowanie(cursor, row['id_posiedzenia'], row['nr_glosowania'], row['opis'])
 
 # Funkcja do sprawdzenia czy partia istnieje w bazie danych na podstawie nazwy

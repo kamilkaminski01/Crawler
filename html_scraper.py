@@ -30,6 +30,7 @@ urls = [] # Lista stron głosowań
 id_posiedzen_list = [] # Lista ID posiedzeń
 id_poslow_list = []
 
+url_partie = 'https://www.sejm.gov.pl/Sejm9.nsf/kluby.xsp'
 url_nr_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
 url_nr_glosowania = '&NrGlosowania='
 path = '/Users/kamilkaminski/Downloads/Scraping/'
@@ -41,6 +42,14 @@ url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdD
 url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
 url_posla = '*posel.xsp?id=*'
 url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
+
+# Funkcja do wychywcenia partii
+def get_partie():
+    soup = bs4.BeautifulSoup(requests.get(url_partie, verify=True).text, 'html.parser')
+
+    for link in soup.find_all('a'):
+        link = link.get('href')
+        if fnmatch.fnmatch(link, '/Sejm9.nsf/klubposlowie.xsp?klub=*'): print(link)
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -132,7 +141,7 @@ def get_glosowania():
 
         # Zmiana nazwy kolumn z 'Nr' na 'nr_glosowania', 'Temat' na 'opis'
         dataframe = dataframe.rename(columns={'Nr': 'nr_glosowania', 'Temat': 'opis'})
-        # Wstawienie w kolumnie o 0-owym indeksie id posiedzenia
+        # Wstawienie kolumny w 1 indeks i wartość id_posiedzenia
         dataframe.insert(1, 'id_posiedzenia', id)
 
         # Dodanie do ostatecznego dataframe'u głosowania z posiedzeń
@@ -191,70 +200,79 @@ def get_poslowie():
     # return dataframe.to_csv('poslowie.csv', index=False)
     return dataframe
 
-#
+# Funkcja do wychwycenia głosów posłów
 def get_glosy():
     global url_glos_posla
-
+    # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
         sql = '''SELECT * FROM glosowania'''
         table = pd.read_sql(sql, db)
         return table
 
+    glosowania_database_table = get_database_glosowania()
+    # glosowania_database_table.to_csv('glosowania_baza_danych.csv', index=False)
+
     column_names = ['id_posel', 'id_glosowania', 'glos']
     joined_dataframe = pd.DataFrame(columns=column_names)
-    ids = []
-    test = 0
-
-    glosowania_database_table = get_database_glosowania()
+    counter = 0
 
     for id_posel in id_poslow_list:
         url_glos_posla += id_posel
+        # Wczytanie strony głosowań posła
         soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
 
         for link in soup.find_all('a'):
             link = link.get('href')
 
             if fnmatch.fnmatch(link, '*IdDnia=*'):
+                id_glosowan_list = []
+
                 temp_link = url_home_link + link
-                print(temp_link)
-                # soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
-
                 id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
+
+                # Dataframe danych z głosowania posła na danym posiedzeniu
                 dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
+                # print(temp_link)
 
+                # Usunięcie kolumny 'Godzina' z dataframe'u
                 del dataframe['Godzina']
+                # Wstawienie kolumny 'id_posel' z jego ID
                 dataframe.insert(0, 'id_posel', id_posel)
+                # Zmiana nazw kolumn i usunięcie niepotrzebnego ostatniego wiersza z tabeli
                 dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
-
-
                 dataframe = dataframe[:-1]
 
-                # glosowania_database_table.to_csv('glosowania_baza_danych.csv', index=False)
+                # Iterowanie po tabeli głosowań z bazy danych
+                for index1, row_glosowania in glosowania_database_table.iterrows():
+                    if row_glosowania['id_posiedzenia'] == int(id_posiedzenia):
+                        id_glosowania = row_glosowania['id_glosowania']
+                        opis = row_glosowania['opis']
+                        numer_glosowania = row_glosowania['nr_glosowania']
 
-                for index1, row1 in glosowania_database_table.iterrows():
-                    if row1['id_posiedzenia'] == int(id_posiedzenia):
-                        id_glosowania = row1['id_glosowania']
-                        opis = row1['opis']
-                        numer_glosowania = row1['nr_glosowania']
-                        for index2, row2 in dataframe.iterrows():
-                            numer_glosowania2 = row2['nr_glosowania']
-                            opis2 = row2['opis']
+                        # Iterowanie po aktualnym dataframie w celu przypisania id_glosowania głosowaniom
+                        for index2, row_dataframe in dataframe.iterrows():
+                            numer_glosowania2 = row_dataframe['nr_glosowania']
+                            opis2 = row_dataframe['opis']
+
+                            # Jeśli numer głosowania i opis są takie same jak w tabeli z bazy danych,
+                            # dodanie id_glosowania do listy głosowań
                             if numer_glosowania == int(numer_glosowania2) and opis == opis2:
-                                # dataframe.insert(1, 'id_glosowania', id_glosowania)
-                                # dataframe = dataframe[['id_posel', 'id_glosowania', 'glos']]
-                                ids.append(id_glosowania)
+                                id_glosowan_list.append(id_glosowania)
 
+                # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
+                del dataframe['opis']
+                del dataframe['nr_glosowania']
+                dataframe.insert(1, 'id_glosowania', id_glosowan_list)
 
-
-                                # joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-        #                         test += 1
-        #                         if test == 50: break
-        #             if test == 50: break
-        #     if test == 50: break
-        # if test == 50: break
-
-    # return joined_dataframe.to_csv('glosowanie_test.csv', index=False)
-
+                counter += 1
+                # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
+                joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
+                if counter == 1000: break
+            if counter == 1000: break
+        if counter == 1000: break
+        url_glos_posla = url_glos_posla.strip(id_posel)
+    # return joined_dataframe.to_csv('glosy.csv', index=False)
+    return joined_dataframe
 
 '''
 def get_date(soup):
@@ -315,7 +333,7 @@ def get_dataframe_other(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     return dataframe.to_csv(header, encoding='utf-8', index=False)
 '''
 
-# Funckja do przekształcenia tabeli
+# Funkcja do przekształcenia tabeli
 def get_dataframe(url, nazwa_partii, nr_posiedzenia, nr_glosowania):
     # Pobranie tabeli o zerowym indeksie ze strony. 'encoding' ważne, aby przeczytać polskie znaki
     dataframe = pd.read_html(url, encoding='utf-8')[0]
@@ -416,10 +434,9 @@ posiedzenia = 2
 glosowania = 1
 
 # get_urls(posiedzenia, glosowania)
+get_partie()
 # get_posiedzenia()
 # get_glosowania()
 # get_voting()
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-get_poslowie()
-get_glosy()
+# get_poslowie()
+# get_glosy()
