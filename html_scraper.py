@@ -40,6 +40,7 @@ url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKa
 url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia='
 url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
 url_posla = '*posel.xsp?id=*'
+url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -192,18 +193,22 @@ def get_poslowie():
 
 #
 def get_glosy():
+    global url_glos_posla
 
     def get_database_glosowania():
         sql = '''SELECT * FROM glosowania'''
         table = pd.read_sql(sql, db)
         return table
-    # def did_vote():
 
+    column_names = ['id_posel', 'id_glosowania', 'glos']
+    joined_dataframe = pd.DataFrame(columns=column_names)
+    ids = []
+    test = 0
 
     glosowania_database_table = get_database_glosowania()
 
     for id_posel in id_poslow_list:
-        url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl=' + id_posel
+        url_glos_posla += id_posel
         soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
 
         for link in soup.find_all('a'):
@@ -211,18 +216,44 @@ def get_glosy():
 
             if fnmatch.fnmatch(link, '*IdDnia=*'):
                 temp_link = url_home_link + link
+                print(temp_link)
                 # soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
 
-                id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=').as_type(int)
+                id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
+                dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
 
-                for index, row in glosowania_database_table.iterrows():
-                    if row['id_posiedzenia'] == id_posiedzenia:
-                        print(id_posel)
-                        print(id_posiedzenia)
-                        dataframe = pd.read_html(temp_link, encoding='utf-8', index=False)
-                        print(dataframe)
-                        print()
+                del dataframe['Godzina']
+                dataframe.insert(0, 'id_posel', id_posel)
+                dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
 
+
+                dataframe = dataframe[:-1]
+
+                # glosowania_database_table.to_csv('glosowania_baza_danych.csv', index=False)
+
+                for index1, row1 in glosowania_database_table.iterrows():
+                    if row1['id_posiedzenia'] == int(id_posiedzenia):
+                        id_glosowania = row1['id_glosowania']
+                        opis = row1['opis']
+                        numer_glosowania = row1['nr_glosowania']
+                        for index2, row2 in dataframe.iterrows():
+                            numer_glosowania2 = row2['nr_glosowania']
+                            opis2 = row2['opis']
+                            if numer_glosowania == int(numer_glosowania2) and opis == opis2:
+                                # dataframe.insert(1, 'id_glosowania', id_glosowania)
+                                # dataframe = dataframe[['id_posel', 'id_glosowania', 'glos']]
+                                ids.append(id_glosowania)
+
+
+
+                                # joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
+        #                         test += 1
+        #                         if test == 50: break
+        #             if test == 50: break
+        #     if test == 50: break
+        # if test == 50: break
+
+    # return joined_dataframe.to_csv('glosowanie_test.csv', index=False)
 
 
 '''
@@ -388,5 +419,7 @@ glosowania = 1
 # get_posiedzenia()
 # get_glosowania()
 # get_voting()
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 get_poslowie()
 get_glosy()
