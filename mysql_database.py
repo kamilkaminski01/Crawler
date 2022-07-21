@@ -2,29 +2,23 @@ import mysql.connector
 import pandas as pd
 from html_scraper import *
 
-db = mysql.connector.connect(
-    host = "localhost",
-    user = "root",
-    passwd = "kamil123",
-    database = "testdatabase"
-)
+# db = mysql.connector.connect(
+#     host = "localhost",
+#     user = "root",
+#     passwd = "kamil123",
+#     database = "testdatabase"
+# )
 
 cursor = db.cursor()
-# partie = get_partie()
-# posiedzenia_dataframe = get_posiedzenia()
-# glosowania_dataframe = get_glosowania()
-# poslowie_dataframe = get_poslowie()
-# glosy_dataframe = get_glosy()
-
 
 create_table_partie = '''CREATE TABLE partie (id_partia int PRIMARY KEY AUTO_INCREMENT, nazwa VARCHAR(50) NOT NULL)'''
 create_table_poslowie = '''CREATE TABLE poslowie (id_posel int PRIMARY KEY, imie VARCHAR(30) NOT NULL, nazwisko VARCHAR(30) NOT NULL)'''
 create_table_posiedzenia = '''CREATE TABLE posiedzenia (id_posiedzenia int PRIMARY KEY, nr_posiedzenia int NOT NULL, data DATE NOT NULL)'''
 create_table_glosowania = '''CREATE TABLE glosowania (id_glosowania int PRIMARY KEY AUTO_INCREMENT, id_posiedzenia int NOT NULL, 
                             nr_glosowania int NOT NULL,opis VARCHAR(2000) NOT NULL, FOREIGN KEY(id_posiedzenia) REFERENCES posiedzenia(id_posiedzenia))'''
-create_table_glosy = '''CREATE TABLE glosy (id_glos int PRIMARY KEY AUTO_INCREMENT, id_posel int NOT NULL, id_glosowania int NOT NULL,
-                        glos ENUM('Za', 'Przeciw', 'Wstrzymał się', 'Nie głosował', 'Głos oddany na listę') NOT NULL, FOREIGN KEY(id_posel) REFERENCES poslowie(id_posel),
-                        FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
+create_table_glosy = '''CREATE TABLE glosy (id_glos int PRIMARY KEY AUTO_INCREMENT, id_partia int NOT NULL, id_posel int NOT NULL, id_glosowania int NOT NULL,
+                        glos ENUM('Za', 'Przeciw', 'Wstrzymał się', 'Nie głosował', 'Głos oddany na listę') NOT NULL, FOREIGN KEY(id_posel) REFERENCES partie(id_partia),
+                        FOREIGN KEY(id_posel) REFERENCES poslowie(id_posel), FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
 
 # Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
 def posiedzenie_exists(cursor, id_posiedzenia):
@@ -113,29 +107,44 @@ def glos_exists(cursor, id_posel, id_glosowania):
     return cursor.fetchone() is not None
 
 # Funkcja do wstawienia danych o głosie
-def insert_glos(cursor, id_posel, id_glosowania, glos):
-    insert_into_glosy = ('''INSERT INTO glosy SET id_posel = (SELECT id_posel FROM poslowie WHERE id_posel = %s), 
-                            id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), glos = %s''')
-    row_to_insert = (id_posel, id_glosowania, glos)
+def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
+    insert_into_glosy = ('''INSERT INTO glosy SET id_partia = (SELECT id_partia FROM partie WHERE id_partia = %s), id_posel = 
+                        (SELECT id_posel FROM poslowie WHERE id_posel = %s), id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), glos = %s''')
+    row_to_insert = (id_posel, id_partia, id_glosowania, glos)
     cursor.execute(insert_into_glosy, row_to_insert)
 
 # Wstawienie głosów do bazy danych
 def execute_glosy():
     for index, row in glosy_dataframe.iterrows():
         if glos_exists(cursor, row['id_posel'], row['id_glosowania']): pass
-        else: insert_glos(cursor, row['id_posel'], row['id_glosowania'], row['glos'])
+        else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'])
 
 
-# execute_partie()
-# execute_posiedzenia()
-# execute_glosowania()
-# execute_poslowie()
-# execute_glosy()
+start = time.time()
+
+partie = get_partie()
+execute_partie()
+
+posiedzenia_dataframe = get_posiedzenia()
+execute_posiedzenia()
+
+glosowania_dataframe = get_glosowania()
+execute_glosowania()
+
+poslowie_dataframe = get_poslowie()
+execute_poslowie()
+
+glosy_dataframe = get_glosy()
+execute_glosy()
+
+db.commit()
+
+end = time.time()
+print("\nZajęło: " + str(round((end-start)/60,2)))
+
 
 # cursor.execute(create_table_partie)
 # cursor.execute(create_table_poslowie)
 # cursor.execute(create_table_posiedzenia)
 # cursor.execute(create_table_glosowania)
 # cursor.execute(create_table_glosy)
-
-# db.commit()
