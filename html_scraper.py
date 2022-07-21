@@ -1,3 +1,4 @@
+import urllib.error
 import requests
 import bs4
 import fnmatch
@@ -7,23 +8,6 @@ import time
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
-
-# partie = [
-#     'PiS',
-#     'KO',
-#     'Lewica',
-#     'SLD',
-#     'PSL',
-#     'PSL-Kukiz15',
-#     'Kukiz15',
-#     'Konfederacja',
-#     'KP',
-#     'Polska2050',
-#     'Porozumienie',
-#     'PPS',
-#     'PS',
-#     'niez.'
-# ]
 
 db = mysql.connector.connect(
     host = "localhost",
@@ -36,9 +20,8 @@ id_posiedzen_list = [] # Lista ID wszystkich posiedzeń
 id_poslow_list = [] # Lista ID wszystkich posłów
 
 url_partie = 'https://www.sejm.gov.pl/Sejm9.nsf/kluby.xsp'
-url_nr_posiedzenia = 'https://www.sejm.gov.pl/sejm9.nsf/agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia='
+url_nr_posiedzenia = '*agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=*'
 url_nr_glosowania = '&NrGlosowania='
-path = '/Users/kamilkaminski/Downloads/Scraping/'
 url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
 url_home_link2 = 'https://www.sejm.gov.pl'
 url_glosowania_partii = '*agent.xsp?symbol=klubglos&IdGlosowania=*'
@@ -46,25 +29,45 @@ url_posiedzen = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKa
 url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia='
 url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
 url_posla = '*posel.xsp?id=*'
+url_posla2 = 'https://www.sejm.gov.pl/Sejm9.nsf/posel.xsp?id='
 url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
 
-# Funkcja do wychywcenia partii
-def get_partie():
-    nazwy_partii = []
+# Funkcja do wypełnienia listy id_posiedzen
+def get_id_posiedzen_list():
+    # Wczytanie strony ze zmiennej url_posiedzen
+    soup = bs4.BeautifulSoup(requests.get(url_posiedzen, verify=True).text, 'html.parser')
 
-    soup = bs4.BeautifulSoup(requests.get(url_partie, verify=True).text, 'html.parser')
-
+    # Wyszukiwanie linków dat posiedzeń i pobranie od nich ID
     for link in soup.find_all('a'):
         link = link.get('href')
-        if fnmatch.fnmatch(link, '/Sejm9.nsf/klubposlowie.xsp?klub=*'):
-            nazwa = link[link.index('klub='):].strip('klub=')
+        if fnmatch.fnmatch(link, '*IdDnia=*'):
+            link = link[link.index('IdDnia='):].strip('IdDnia=')
+            id_posiedzen_list.append(link)
 
-            if nazwa not in nazwy_partii: nazwy_partii.append(nazwa)
+# Funkcja do wypełnienia listy id_posłów
+def get_id_poslow_list():
+    # Wczytanie strony ze zmiennej url_poslowie
+    soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
 
-    return nazwy_partii
+    # Wyszukiwanie linków id posłów i ich pobranie
+    for link in soup.find_all('a'):
+        link = link.get('href')
+        if fnmatch.fnmatch(link, url_posla):
+            id = link[link.index('id='):link.index('&')].strip('id=')
+            id_poslow_list.append(id)
+
+def get_name(full_name):
+    if full_name.count(' ') == 1: return full_name.split(' ')[0]
+    return ' '.join(full_name.split(' ', 2)[:2])
+
+def get_last_name(full_name):
+    if full_name.count(' ') == 1: return full_name.split(' ')[1]
+    return full_name.split(' ')[2]
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
+    print("Sprawdzam posiedzenia...")
+
     miesiace = {
         'stycznia': '01',
         'lutego': '02',
@@ -80,15 +83,7 @@ def get_posiedzenia():
         'grudnia': '12'
     }
 
-    # Wczytanie strony ze zmiennej url_posiedzen
-    soup = bs4.BeautifulSoup(requests.get(url_posiedzen, verify=True).text, 'html.parser')
-
-    # Wyszukiwanie linków dat posiedzeń i pobranie od nich ID
-    for link in soup.find_all('a'):
-        link = link.get('href')
-        if fnmatch.fnmatch(link, '*IdDnia=*'):
-            link = link[link.index('IdDnia='):].strip('IdDnia=')
-            id_posiedzen_list.append(link)
+    get_id_posiedzen_list()
 
     # Wczytanie tabeli ze strony
     dataframe = pd.read_html(url_posiedzen, encoding='utf-8')[0]
@@ -135,12 +130,55 @@ def get_posiedzenia():
     # return dataframe.to_csv('posiedzenia.csv', index=False)
     return dataframe
 
+# Funkcja do wychywcenia partii
+def get_partie():
+    print("Sprawdzam nazwy partii...")
+
+    nazwy_partii = []
+
+    # Pobranie ID posiedzeń
+    get_id_posiedzen_list()
+
+    # Iterowanie po każdym posiedzeniu
+    for id in id_posiedzen_list:
+        url = url_glosowan + id
+        print(url)
+
+        # Wczytanie strony z głosowaniami
+        soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+
+        url = url.strip(id)
+        try:
+            for link in soup.find_all('a'):
+                link = link.get('href')
+                if fnmatch.fnmatch(link, url_nr_posiedzenia):
+                    link = url_home_link + link
+
+                    # Wczytanie strony z szczegółami głosowań
+                    dataframe = pd.read_html(link, encoding='utf-8')[0]
+                    partie = dataframe['Klub/Koło'].tolist()
+
+                    # Jeśli partia nie znajduje się już w liście partii, append
+                    for partia in partie:
+                        if partia not in nazwy_partii: nazwy_partii.append(partia)
+
+                    break
+        except(ValueError, ConnectionResetError, urllib.error.HTTPError):
+            print('Brak danych o głosowaniach partii lub rozłączyło połączenie')
+            pass
+
+    return nazwy_partii
+
 # Funkcja do wychwycenia numerów, opisów głosowań i przypisanie im ich id_posiedzeń
 def get_glosowania():
+    print("Sprawdzam glosowania...")
+
     global url_glosowan
     # Utworzenie pustego dataframe'u z kolumnami id_posiedzenia, nr_glosowania, opis
     column_names = ['id_posiedzenia', 'nr_glosowania', 'opis']
     joined_dataframe = pd.DataFrame(columns=column_names)
+
+    get_id_posiedzen_list()
 
     # Z listy ID posiedzeń z funkcji get_posiedzenia, przejście po każdym posiedzeniu
     for id in id_posiedzen_list:
@@ -168,14 +206,10 @@ def get_glosowania():
 
 # Funkcja do wychywcenia id, imiona i nazwiska posłów
 def get_poslowie():
+    print("Sprawdzam posłów...")
 
-    def get_name(full_name):
-        if full_name.count(' ') == 1: return full_name.split(' ')[0]
-        return ' '.join(full_name.split(' ', 2)[:2])
-
-    def get_last_name(full_name):
-        if full_name.count(' ') == 1: return full_name.split(' ')[1]
-        return full_name.split(' ')[2]
+    # Wychywcenie ID posłów z linków
+    get_id_poslow_list()
 
     column_names = ['id_posel', 'imie', 'nazwisko']
     dataframe = pd.DataFrame(columns=column_names)
@@ -184,13 +218,11 @@ def get_poslowie():
 
     soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
 
-    # Wychywcenie ID posłów z linków
+    # Wychwycenie imion wszystkich posłów
     for link in soup.find_all('a'):
         link = link.get('href')
         if fnmatch.fnmatch(link, url_posla):
-            id = link[link.index('id='):link.index('&')].strip('id=')
 
-            # Wychwycenie imion wszystkich posłów
             link = url_home_link2 + link
             soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
 
@@ -201,7 +233,6 @@ def get_poslowie():
                 names.append(name)
                 last_name = get_last_name(full_name)
                 last_names.append(last_name)
-                id_poslow_list.append(id)
     # Ustawienie list jako kolumny w dataframe'ie
     dataframe['id_posel'] = id_poslow_list
     dataframe['imie'] = names
@@ -212,20 +243,75 @@ def get_poslowie():
 
 # Funkcja do wychwycenia głosów posłów
 def get_glosy():
+    print("Sprawdzam głosy...")
+
     global url_glos_posla
     # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
         sql = '''SELECT * FROM glosowania'''
         table = pd.read_sql(sql, db)
         return table
+    # Funkcja do wczytania tabeli partii z bazy danych, aby pobrać z niej id_partii
+    def get_database_partie():
+        sql = '''SELECT * FROM partie'''
+        table = pd.read_sql(sql, db)
+        return table
 
     glosowania_database_table = get_database_glosowania()
-    # glosowania_database_table.to_csv('glosowania_baza_danych.csv', index=False)
+    glosowania_database_table.to_csv('glosowania_baza_danych.csv', index=False)
+    partie_database_table = get_database_partie()
 
-    column_names = ['id_posel', 'id_glosowania', 'glos']
+    def check_posel_id_partia(url, name, partie_database_table):
+        found = False
+        soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+
+        for link in soup.find_all('a'):
+            link = link.get('href')
+            if fnmatch.fnmatch(link, url_nr_posiedzenia):
+                link = url_home_link + link
+                print(link)
+
+                soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
+
+                for partia in soup.find_all('a'):
+                    partia = partia.get('href')
+                    if fnmatch.fnmatch(partia, url_glosowania_partii):
+                        partia_link = url_home_link + partia
+
+                        nazwa_partii = partia[partia.index('&KodKlubu='):]
+                        nazwa_partii = nazwa_partii[nazwa_partii.index('='):].strip('=')
+
+                        dataframe = pd.read_html(partia_link, encoding='utf-8')[0]
+                        dataframe_left = dataframe['Nazwisko i imię'].tolist()
+                        dataframe_right = dataframe['Nazwisko i imię.1'].tolist()
+
+                        poslowie = dataframe_left + dataframe_right
+
+                        for posel in poslowie:
+                            if posel == name:
+                                partia_posla = nazwa_partii
+                                found = True
+                                print(partia_posla)
+                                break
+                        pass
+                    if found: break
+            if found: break
+
+        partie = partie_database_table
+
+        for index, row in partie.iterrows():
+            if row['nazwa'] == partia_posla:
+                id_partii_posla = row['id_partia']
+                return id_partii_posla
+
+
+    column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos']
     joined_dataframe = pd.DataFrame(columns=column_names)
+
     counter = 0
 
+    get_id_poslow_list()
+    # id_poslow_list = ['352']
     for id_posel in id_poslow_list:
         url_glos_posla += id_posel
         # Wczytanie strony głosowań posła
@@ -233,21 +319,33 @@ def get_glosy():
 
         for link in soup.find_all('a'):
             link = link.get('href')
-
             if fnmatch.fnmatch(link, '*IdDnia=*'):
                 id_glosowan_list = []
+                id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
 
                 temp_link = url_home_link + link
-                id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
+                print(temp_link)
+
+                soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
+
+                full_name = soup.find('h1').get_text()
+                full_name = full_name[:full_name.index('Głosowania')]
+
+                name = get_name(full_name)
+                last_name = get_last_name(full_name)
+                new_full_name = last_name + ' ' + name
+
+                print(new_full_name)
+                id_partii_posla = check_posel_id_partia(temp_link, new_full_name, partie_database_table)
 
                 # Dataframe danych z głosowania posła na danym posiedzeniu
                 dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
-                # print(temp_link)
 
                 # Usunięcie kolumny 'Godzina' z dataframe'u
                 del dataframe['Godzina']
-                # Wstawienie kolumny 'id_posel' z jego ID
-                dataframe.insert(0, 'id_posel', id_posel)
+                # Wstawienie kolumny 'id_partia' i 'id_posel' z ich ID
+                dataframe.insert(0, 'id_partia', id_partii_posla)
+                dataframe.insert(1, 'id_posel', id_posel)
                 # Zmiana nazw kolumn i usunięcie niepotrzebnego ostatniego wiersza z tabeli
                 dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
                 dataframe = dataframe[:-1]
@@ -269,20 +367,24 @@ def get_glosy():
                             if numer_glosowania == int(numer_glosowania2) and opis == opis2:
                                 id_glosowan_list.append(id_glosowania)
 
+
                 # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
                 del dataframe['opis']
                 del dataframe['nr_glosowania']
-                dataframe.insert(1, 'id_glosowania', id_glosowan_list)
+                dataframe.insert(2, 'id_glosowania', id_glosowan_list)
 
                 counter += 1
+                print(counter)
+                print('------------')
                 # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
                 joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-                if counter == 50: break
-            if counter == 50: break
-        if counter == 50: break
+                if counter == 1000: break
+            if counter == 1000: break
+        if counter == 1000: break
         url_glos_posla = url_glos_posla.strip(id_posel)
-    # return joined_dataframe.to_csv('glosy.csv', index=False)
-    return joined_dataframe
+
+    return joined_dataframe.to_csv('glosy.csv', index=False)
+    # return joined_dataframe
 
 '''
 # Funkcja do przekształcenia innego radzaju występującej tabeli
@@ -431,11 +533,53 @@ glosowania = 1
 # get_voting()
 '''
 
+'''
+# Funkcja do wychwycenia przynależności posłów do partii
+def get_przynaleznosci():
+    global url_posla2, url_poslowie
+
+    def get_database_partie():
+        sql = "SELECT * from partie"
+        table = pd.read_sql(sql, db)
+        return table
+
+    partie_database_table = get_database_partie()
+
+    ids = []
+    partie = []
+
+    column_names = ['id_posel', 'id_partia']
+    joined_dataframe = pd.DataFrame(columns=column_names)
+
+    soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
+    for link in soup.find_all('li'):
+        print(link)
+    # for id_posel in id_poslow_list:
+        # url_posla2 += id_posel + '&type=C'
+
+
+        # for link in soup.find_all('a'):
+        #     link = link.get('href')
+        #     if fnmatch.fnmatch(link, url_posla):
+        #         link = url_home_link2 + link
+        #
+        #         soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
+        #
+        #         for link in soup.find_all('id'):
+        #             print(link)
+
+
+
+        # url_posla2 = url_posla2.strip('&type=C')
+        # url_posla2 = url_posla2.strip(id_posel)
+    # print(partie_database_table)
+'''
+
 # start = time.time()
 # get_partie()
 # get_posiedzenia()
 # get_glosowania()
 # get_poslowie()
-# get_glosy()
+get_glosy()
 # end = time.time()
 # print("Zajęło: " + str(end-start))

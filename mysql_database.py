@@ -46,7 +46,7 @@ def execute_posiedzenia():
         # Jeśli posiedzenie nie istnieje w bazie danych, dodanie rzędu
         else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
 
-# Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu
+# Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu i numeru głosowania
 def glosowanie_exists(cursor, nr_glosowania, opis):
     query = ('''SELECT nr_glosowania, opis FROM glosowania WHERE nr_glosowania = %s AND opis = %s''')
     row_to_insert = (nr_glosowania, opis)
@@ -102,7 +102,7 @@ def execute_poslowie():
     for index, row in poslowie_dataframe.iterrows():
         # Jeśli poseł istnieje w bazie danych, przejście dalej
         if posel_exists(cursor, row['id_posel']): pass
-        # Jeśłi poseł nie istnieje w bazie danych, dodanie rzędu
+        # Jeśli poseł nie istnieje w bazie danych, dodanie rzędu
         else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
 
 # Funkcja do sprawdzenia czy głos posła istnieje w bazie danych na podstawie id posła i id głosowania
