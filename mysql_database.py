@@ -42,48 +42,7 @@ create_table_glosy = '''CREATE TABLE glosy
                         FOREIGN KEY(id_posel) REFERENCES poslowie(id_posel), 
                         FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
 
-# Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
-def posiedzenie_exists(cursor, id_posiedzenia):
-    query = ('''SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s''')
-    cursor.execute(query, (id_posiedzenia,))
-    return cursor.fetchone() is not None
 
-# Funkcja do wstawienia danych o posiedzeniu
-def insert_posiedzenia(cursor, id_posiedzenia, nr_posiedzenia, data):
-    insert_into_posiedzenia = ('''INSERT INTO posiedzenia (id_posiedzenia, nr_posiedzenia, data) VALUES (%s,%s,%s)''')
-    row_to_insert = (id_posiedzenia, nr_posiedzenia, data)
-    cursor.execute(insert_into_posiedzenia, row_to_insert)
-
-# Wstawianie posiedzeń do bazy danych
-def execute_posiedzenia():
-    for index, row in posiedzenia_dataframe.iterrows():
-        # Jeśli posiedzenie istnieje w bazie danych, przejście dalej
-        if posiedzenie_exists(cursor, row['id_posiedzenia']): pass
-        # Jeśli posiedzenie nie istnieje w bazie danych, dodanie rzędu
-        else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
-    db.commit()
-
-# Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu i numeru głosowania
-def glosowanie_exists(cursor, nr_glosowania, opis):
-    query = ('''SELECT nr_glosowania, opis FROM glosowania WHERE nr_glosowania = %s AND opis = %s''')
-    row_to_insert = (nr_glosowania, opis)
-    cursor.execute(query, row_to_insert)
-    return cursor.fetchone() is not None
-
-# Funkcja do wstawienia danych o głosowaniu
-def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
-    insert_into_glosowania = ('''INSERT INTO glosowania SET 
-                                id_posiedzenia = (SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s), 
-                                nr_glosowania = %s, opis = %s''')
-    row_to_insert = (id_posiedzenia, nr_glosowania, opis)
-    cursor.execute(insert_into_glosowania, row_to_insert)
-
-# Wstawianie głosowań do bazy danych
-def execute_glosowania():
-    for index, row in glosowania_dataframe.iterrows():
-        if glosowanie_exists(cursor, row['nr_glosowania'], row['opis']): pass
-        else: insert_glosowanie(cursor, row['id_posiedzenia'], row['nr_glosowania'], row['opis'])
-    db.commit()
 
 # Funkcja do sprawdzenia czy partia istnieje w bazie danych na podstawie nazwy
 def partia_exists(cursor, nazwa):
@@ -127,6 +86,49 @@ def execute_poslowie():
         else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
     db.commit()
 
+# Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
+def posiedzenie_exists(cursor, id_posiedzenia):
+    query = ('''SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s''')
+    cursor.execute(query, (id_posiedzenia,))
+    return cursor.fetchone() is not None
+
+# Funkcja do wstawienia danych o posiedzeniu
+def insert_posiedzenia(cursor, id_posiedzenia, nr_posiedzenia, data):
+    insert_into_posiedzenia = ('''INSERT INTO posiedzenia (id_posiedzenia, nr_posiedzenia, data) VALUES (%s,%s,%s)''')
+    row_to_insert = (id_posiedzenia, nr_posiedzenia, data)
+    cursor.execute(insert_into_posiedzenia, row_to_insert)
+
+# Wstawianie posiedzeń do bazy danych
+def execute_posiedzenia():
+    for index, row in posiedzenia_dataframe.iterrows():
+        # Jeśli posiedzenie istnieje w bazie danych, przejście dalej
+        if posiedzenie_exists(cursor, row['id_posiedzenia']): pass
+        # Jeśli posiedzenie nie istnieje w bazie danych, dodanie rzędu
+        else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
+    db.commit()
+
+# Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu i numeru głosowania
+def glosowanie_exists(cursor, nr_glosowania, opis):
+    query = ('''SELECT nr_glosowania, opis FROM glosowania WHERE nr_glosowania = %s AND opis = %s''')
+    row_to_insert = (nr_glosowania, opis)
+    cursor.execute(query, row_to_insert)
+    return cursor.fetchone() is not None
+
+# Funkcja do wstawienia danych o głosowaniu
+def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
+    insert_into_glosowania = ('''INSERT INTO glosowania SET 
+                                id_posiedzenia = (SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s), 
+                                nr_glosowania = %s, opis = %s''')
+    row_to_insert = (id_posiedzenia, nr_glosowania, opis)
+    cursor.execute(insert_into_glosowania, row_to_insert)
+
+# Wstawianie głosowań do bazy danych
+def execute_glosowania():
+    for index, row in glosowania_dataframe.iterrows():
+        if glosowanie_exists(cursor, row['nr_glosowania'], row['opis']): pass
+        else: insert_glosowanie(cursor, row['id_posiedzenia'], row['nr_glosowania'], row['opis'])
+    db.commit()
+
 # Funkcja do sprawdzenia czy głos posła istnieje w bazie danych na podstawie id posła i id głosowania
 def glos_exists(cursor, id_posel, id_glosowania):
     query = ('''SELECT id_posel, id_glosowania FROM glosy WHERE id_posel = %s and id_glosowania = %s''')
@@ -150,7 +152,7 @@ def execute_glosy():
     db.commit()
 
 
-start = time.time()
+# start = time.time()
 
 # partie = get_partie()
 # execute_partie()
@@ -167,10 +169,8 @@ start = time.time()
 # glosy_dataframe = get_glosy()
 # execute_glosy()
 
-# db.commit()
-
-end = time.time()
-print("\nZajęło: " + str(round((end-start)/60,2)) + 'min')
+# end = time.time()
+# print("\nZajęło: " + str(round((end-start)/60,2)) + 'min')
 
 
 # cursor.execute(create_table_partie)
