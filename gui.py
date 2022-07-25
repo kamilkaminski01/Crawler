@@ -40,35 +40,45 @@ def partia_gui(choice):
     if choice == 1:
         partie = get_partie()
         partie_status_label.config(text='Status: partie pobrane')
-    elif choice == 2: execute_partie(partie)
+    elif choice == 2:
+        execute_partie(partie)
+        partie_status_label.config(text='Status: partie dodane do bazy danych')
 
 def posiedzenia_gui(choice):
     global posiedzenia_dataframe
     if choice == 1:
         posiedzenia_dataframe = get_posiedzenia()
         posiedzenia_status_label.config(text='Status: posiedzenia pobrane')
-    elif choice == 2: execute_posiedzenia(posiedzenia_dataframe)
+    elif choice == 2:
+        execute_posiedzenia(posiedzenia_dataframe)
+        posiedzenia_status_label.config(text='Status: posiedzenia dodane do bazy danych')
 
 def poslowie_gui(choice):
     global poslowie_dataframe
     if choice == 1:
         poslowie_dataframe = get_poslowie()
         poslowie_status_label.config(text='Status: posłowie pobrani')
-    elif choice == 2: execute_poslowie(poslowie_dataframe)
+    elif choice == 2:
+        execute_poslowie(poslowie_dataframe)
+        poslowie_status_label.config(text='Status: poslowie dodani do bazy danych')
 
 def glosowania_gui(choice):
     global glosowania_dataframe
     if choice == 1:
         glosowania_dataframe = get_glosowania()
         glosowania_status_label.config(text='Status: głosowania pobrane')
-    elif choice == 2: execute_glosowania(glosowania_dataframe)
+    elif choice == 2:
+        execute_glosowania(glosowania_dataframe)
+        glosowania_status_label.config(text='Status: głosowania dodane do bazy danych')
 
 def glosy_gui(choice):
     global glosy_dataframe
     if choice == 1:
         glosy_dataframe = get_glosy()
         glosy_status_label.config(text='Status: głosy pobrane')
-    elif choice == 2: execute_glosy(glosy_dataframe)
+    elif choice == 2:
+        execute_glosy(glosy_dataframe)
+        glosy_status_label.config(text='Status: głosy dodane do bazy danych')
 
 
 def load_partie():

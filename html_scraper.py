@@ -279,7 +279,8 @@ def get_glosy():
 
     global url_glos_posla
     counter = 0
-    limit = 1000
+    verifier = 0
+    limit = 500
 
     # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
@@ -427,6 +428,13 @@ def get_glosy():
                     # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
                     joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
                     if counter == limit: break
+                else:
+                    # Weryfikacja/odświeżenie strony posła w celu sprawdzenia
+                    # czy na pewno istnieje na jego stronie zakładka z głosowaniami w przypadku, gdy jej nie wyszukano
+                    if verifier == 3: pass
+                    verifier += 1
+                    continue
+
                 if counter == limit: break
             if counter == limit: break
         except Exception as e:

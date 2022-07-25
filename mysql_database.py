@@ -57,12 +57,14 @@ def insert_partie(cursor, partia):
 
 # Wstawienie partii do bazy danych
 def execute_partie(partie):
+    print('Importuje partie do bazy danych')
     # Pętla korzysta z listy partii w pliku html_scraper
     for partia in partie:
         # Jeśli partia istnieje w bazie danych, przejście dalej
         if partia_exists(cursor, partia): pass
         # Jeśli partia nie istnieje w bazie danych, dodanie rzędu
         else: insert_partie(cursor, partia)
+    print('Partie dodane do bazy danych')
     db.commit()
 
 # Funkcja do sprawdzenia czy posel istnieje w bazie danych na podstawie ID
@@ -126,9 +128,11 @@ def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
 
 # Wstawianie głosowań do bazy danych
 def execute_glosowania(glosowania_dataframe):
+    print('Importuje głosowania do bazy danych')
     for index, row in glosowania_dataframe.iterrows():
         if glosowanie_exists(cursor, row['nr_glosowania'], row['opis']): pass
         else: insert_glosowanie(cursor, row['id_posiedzenia'], row['nr_glosowania'], row['opis'])
+    print('Głosowania dodane do bazy danych')
     db.commit()
 
 # Funkcja do sprawdzenia czy głos posła istnieje w bazie danych na podstawie id posła i id głosowania
@@ -148,9 +152,11 @@ def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
 
 # Wstawienie głosów do bazy danych
 def execute_glosy(glosy_dataframe):
+    print('Importuje głosy do bazy danych')
     for index, row in glosy_dataframe.iterrows():
         if glos_exists(cursor, row['id_posel'], row['id_glosowania']): pass
         else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'])
+    print('Głosy dodane do bazy danych')
     db.commit()
 
 
