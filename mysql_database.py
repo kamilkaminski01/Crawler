@@ -56,7 +56,7 @@ def insert_partie(cursor, partia):
     cursor.execute(insert_into_partie, (partia,))
 
 # Wstawienie partii do bazy danych
-def execute_partie():
+def execute_partie(partie):
     # Pętla korzysta z listy partii w pliku html_scraper
     for partia in partie:
         # Jeśli partia istnieje w bazie danych, przejście dalej
@@ -78,7 +78,7 @@ def insert_posel(cursor, id_posel, imie, nazwisko):
     cursor.execute(insert_into_poslowie, row_to_insert)
 
 # Wstawienie posłów do bazy danych
-def execute_poslowie():
+def execute_poslowie(poslowie_dataframe):
     for index, row in poslowie_dataframe.iterrows():
         # Jeśli poseł istnieje w bazie danych, przejście dalej
         if posel_exists(cursor, row['id_posel']): pass
@@ -99,13 +99,15 @@ def insert_posiedzenia(cursor, id_posiedzenia, nr_posiedzenia, data):
     cursor.execute(insert_into_posiedzenia, row_to_insert)
 
 # Wstawianie posiedzeń do bazy danych
-def execute_posiedzenia():
+def execute_posiedzenia(posiedzenia_dataframe):
+    print('Importuje posiedzenia do bazy danych...')
     for index, row in posiedzenia_dataframe.iterrows():
         # Jeśli posiedzenie istnieje w bazie danych, przejście dalej
         if posiedzenie_exists(cursor, row['id_posiedzenia']): pass
         # Jeśli posiedzenie nie istnieje w bazie danych, dodanie rzędu
         else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
     db.commit()
+    print('Posiedzenia dodane do bazy danych')
 
 # Funkcja do sprawdzenia czy istnieje głosowanie w bazie danych na podstawie opisu i numeru głosowania
 def glosowanie_exists(cursor, nr_glosowania, opis):
@@ -123,7 +125,7 @@ def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
     cursor.execute(insert_into_glosowania, row_to_insert)
 
 # Wstawianie głosowań do bazy danych
-def execute_glosowania():
+def execute_glosowania(glosowania_dataframe):
     for index, row in glosowania_dataframe.iterrows():
         if glosowanie_exists(cursor, row['nr_glosowania'], row['opis']): pass
         else: insert_glosowanie(cursor, row['id_posiedzenia'], row['nr_glosowania'], row['opis'])
@@ -145,7 +147,7 @@ def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
     cursor.execute(insert_into_glosy, row_to_insert)
 
 # Wstawienie głosów do bazy danych
-def execute_glosy():
+def execute_glosy(glosy_dataframe):
     for index, row in glosy_dataframe.iterrows():
         if glos_exists(cursor, row['id_posel'], row['id_glosowania']): pass
         else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'])
@@ -155,19 +157,19 @@ def execute_glosy():
 # start = time.time()
 
 # partie = get_partie()
-# execute_partie()
+# execute_partie(partie)
 
 # posiedzenia_dataframe = get_posiedzenia()
-# execute_posiedzenia()
+# execute_posiedzenia(posiedzenia_dataframe)
 
 # glosowania_dataframe = get_glosowania()
-# execute_glosowania()
+# execute_glosowania(glosowania_dataframe)
 
 # poslowie_dataframe = get_poslowie()
-# execute_poslowie()
+# execute_poslowie(poslowie_dataframe)
 
 # glosy_dataframe = get_glosy()
-# execute_glosy()
+# execute_glosy(glosy_dataframe)
 
 # end = time.time()
 # print("\nZajęło: " + str(round((end-start)/60,2)) + 'min')

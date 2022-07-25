@@ -121,6 +121,7 @@ def get_partie():
             print(e)
             pass
 
+    print('Pobrane')
     return nazwy_partii
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
@@ -143,49 +144,52 @@ def get_posiedzenia():
     }
 
     id_posiedzen_list = get_id_posiedzen_list()
+    try:
+        # Wczytanie tabeli ze strony
+        dataframe = pd.read_html(url_posiedzen, encoding='utf-8')[0]
+        # Usunięcie niepotrzebnych kolumn i zmiana nazwy pozostałych kolumn
+        dataframe = dataframe.drop(['Liczba głosowań', 'Unnamed: 3'], axis=1)
+        dataframe = dataframe.rename(columns={'Nr pos. Sejmu': 'nr_posiedzenia', 'Data pos. Sejmu': 'data'})
 
-    # Wczytanie tabeli ze strony
-    dataframe = pd.read_html(url_posiedzen, encoding='utf-8')[0]
-    # Usunięcie niepotrzebnych kolumn i zmiana nazwy pozostałych kolumn
-    dataframe = dataframe.drop(['Liczba głosowań', 'Unnamed: 3'], axis=1)
-    dataframe = dataframe.rename(columns={'Nr pos. Sejmu': 'nr_posiedzenia', 'Data pos. Sejmu': 'data'})
+        # Uzupełnienie miejsc NULLow na poprzedzające go wartości, w tym wypadku numery posiedzeń
+        dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].fillna(method='ffill')
+        dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
+        # dataframe = dataframe.sort_values(by='nr_posiedzenia', ignore_index=True)
 
-    # Uzupełnienie miejsc NULLow na poprzedzające go wartości, w tym wypadku numery posiedzeń
-    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].fillna(method='ffill')
-    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
-    # dataframe = dataframe.sort_values(by='nr_posiedzenia', ignore_index=True)
+        # Zwrócenie wszystkich dat w kolumnie 'data' do listy
+        date_list = dataframe['data'].tolist()
+        new_date_list = []
 
-    # Zwrócenie wszystkich dat w kolumnie 'data' do listy
-    date_list = dataframe['data'].tolist()
-    new_date_list = []
+        # Modyfikacja każdej daty w liście do formatu YYYY-MMMM-DDDD
+        for date in date_list:
+            date = date.strip(' r.')
+            date = date.replace(' ', '-')
+            for word, replacment in miesiace.items(): date = date.replace(word, replacment)
+            if len(date) == 9: date = '0'+date
 
-    # Modyfikacja każdej daty w liście do formatu YYYY-MMMM-DDDD
-    for date in date_list:
-        date = date.strip(' r.')
-        date = date.replace(' ', '-')
-        for word, replacment in miesiace.items(): date = date.replace(word, replacment)
-        if len(date) == 9: date = '0'+date
+            year = date[date.index('-')+4:]
+            month = date[date.index('-'):date.index('-')+4].strip('-')
+            day = date[:date.index('-')]
+            date = year + '-' + month + '-' + day
 
-        year = date[date.index('-')+4:]
-        month = date[date.index('-'):date.index('-')+4].strip('-')
-        day = date[:date.index('-')]
-        date = year + '-' + month + '-' + day
+            new_date_list.append(date)
 
-        new_date_list.append(date)
+        # Ustawienie nowej kolumny z listy z przekształconymi datami
+        date_column = dataframe.columns[1]
+        dataframe = dataframe.drop(date_column, axis=1)
+        dataframe[date_column] = new_date_list
 
-    # Ustawienie nowej kolumny z listy z przekształconymi datami
-    date_column = dataframe.columns[1]
-    dataframe = dataframe.drop(date_column, axis=1)
-    dataframe[date_column] = new_date_list
+        # Dodanie kolumny 'id_posiedzenia' z poszczególnymi id posiedzień
+        dataframe['id_posiedzenia'] = id_posiedzen_list
+        dataframe = dataframe[['id_posiedzenia', 'nr_posiedzenia', 'data']]
 
-    # Dodanie kolumny 'id_posiedzenia' z poszczególnymi id posiedzień
-    dataframe['id_posiedzenia'] = id_posiedzen_list
-    dataframe = dataframe[['id_posiedzenia', 'nr_posiedzenia', 'data']]
+        # Zmiana typu kolumny nr_posiedzenia i id_posiedzenia ze string na int
+        dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
+        dataframe['id_posiedzenia'] = dataframe['id_posiedzenia'].astype(int)
+    except Exception as e:
+        print(e)
 
-    # Zmiana typu kolumny nr_posiedzenia i id_posiedzenia ze string na int
-    dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
-    dataframe['id_posiedzenia'] = dataframe['id_posiedzenia'].astype(int)
-
+    print('Pobrane')
     # return dataframe.to_csv('posiedzenia.csv', index=False)
     return dataframe
 
@@ -226,6 +230,7 @@ def get_glosowania():
     joined_dataframe['id_posiedzenia'] = joined_dataframe['id_posiedzenia'].astype(int)
     joined_dataframe['nr_glosowania'] = joined_dataframe['nr_glosowania'].astype(int)
 
+    print('Pobrane')
     # return joined_dataframe.to_csv('glosowanie.csv', index=False)
     return joined_dataframe
 
@@ -265,6 +270,7 @@ def get_poslowie():
     dataframe['imie'] = names
     dataframe['nazwisko'] = last_names
 
+    print('Pobrane')
     # return dataframe.to_csv('poslowie.csv', index=False)
     return dataframe
 
@@ -428,6 +434,7 @@ def get_glosy():
             print(e)
             continue
 
+    print('Pobrane')
     # return joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
 
