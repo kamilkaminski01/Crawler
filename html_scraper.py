@@ -280,7 +280,7 @@ def get_glosy():
     global url_glos_posla
     counter = 0
     verifier = 0
-    limit = 500
+    limit = 2000
 
     # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
@@ -431,7 +431,7 @@ def get_glosy():
                 else:
                     # Weryfikacja/odświeżenie strony posła w celu sprawdzenia
                     # czy na pewno istnieje na jego stronie zakładka z głosowaniami w przypadku, gdy jej nie wyszukano
-                    if verifier == 3: pass
+                    if verifier == 100: pass
                     verifier += 1
                     continue
 

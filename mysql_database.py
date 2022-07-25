@@ -81,11 +81,13 @@ def insert_posel(cursor, id_posel, imie, nazwisko):
 
 # Wstawienie posłów do bazy danych
 def execute_poslowie(poslowie_dataframe):
+    print('Importuje posłów do bazy danych')
     for index, row in poslowie_dataframe.iterrows():
         # Jeśli poseł istnieje w bazie danych, przejście dalej
         if posel_exists(cursor, row['id_posel']): pass
         # Jeśli poseł nie istnieje w bazie danych, dodanie rzędu
         else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
+    print('Posłowie dodani do bazy danych')
     db.commit()
 
 # Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
