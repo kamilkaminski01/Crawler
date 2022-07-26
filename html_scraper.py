@@ -278,8 +278,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
     id_poslow_list = []
     id_posiedzen_list = []
     counter = 0
-    verifier = 0
-    found_glosowania = True
+    found = False
 
     # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
@@ -370,27 +369,23 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
 
 
     for id_posel in id_poslow_list:
-
-        try:
-            if found_glosowania:
+        for id_pos in id_posiedzen_list:
+            try:
                 url_glos_posla += id_posel
                 print(url_glos_posla)
                 # Wczytanie strony głosowań posła
                 soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
                 url_glos_posla = url_glos_posla.strip(id_posel)
-            else: soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
 
-            for id_pos in id_posiedzen_list:
                 temp_pos_link = '*IdDnia=' + id_pos
 
                 for link in soup.find_all('a'):
                     link = link.get('href')
-                    # print(link)
-                    # print(test)
                     if fnmatch.fnmatch(link, temp_pos_link):
-                        verifier = 0
-                        temp_pos_link = temp_pos_link.strip(id_pos)
+                        found = True
                         id_glosowan_list = []
+                        temp_pos_link = temp_pos_link.strip(id_pos)
+
                         id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
                         found_glosowania = True
 
@@ -443,11 +438,10 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                         del dataframe['nr_glosowania']
                         dataframe.insert(2, 'id_glosowania', id_glosowan_list)
 
-                        counter += 1
-                        print('Jestem na ' + str(counter) + ' glosowaniu')
+                        # counter += 1
+                        # print('Jestem na ' + str(counter) + ' glosowaniu')
                         # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
                         joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-                        # break
                     # else:
                     #     # Odświeżenie strony posła, gdy nie znaleziono głosowań na jego stronie głosowań
                     #     verifier += 1
@@ -459,14 +453,12 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                     #         break
                     #     pass
                     # if found_glosowania is False: break
-                # if found_glosowania is False: break
+            except Exception as e:
+                print(e)
+                continue
 
-        except Exception as e:
-            print(e)
-            continue
-    print(test_list)
     print('Pobrane')
-    # return joined_dataframe.to_csv('glosy.csv', index=False)
+    joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
 
 

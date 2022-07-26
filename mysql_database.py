@@ -147,7 +147,8 @@ def glos_exists(cursor, id_posel, id_glosowania):
 def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
     insert_into_glosy = ('''INSERT INTO glosy SET id_partia = (SELECT id_partia FROM partie WHERE id_partia = %s), 
                         id_posel = (SELECT id_posel FROM poslowie WHERE id_posel = %s), 
-                        id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), glos = %s''')
+                        id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), 
+                        glos = %s''')
     row_to_insert = (id_partia, id_posel, id_glosowania, glos)
     cursor.execute(insert_into_glosy, row_to_insert)
 
