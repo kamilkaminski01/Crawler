@@ -5,9 +5,6 @@ import pandas as pd
 import mysql.connector
 import time
 
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-
 db = mysql.connector.connect(
     host = "localhost",
     user = "root",
@@ -274,13 +271,15 @@ def get_poslowie():
     return dataframe
 
 # Funkcja do wychwycenia głosów posłów
-def get_glosy():
+def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
     print("Sprawdzam głosy...")
 
     global url_glos_posla
+    id_poslow_list = []
+    id_posiedzen_list = []
     counter = 0
     verifier = 0
-    limit = 2000
+    found_glosowania = True
 
     # Funkcja do wczytania tabeli głosowań z bazy danych, aby pobrać z niej id_głosowań
     def get_database_glosowania():
@@ -328,10 +327,8 @@ def get_glosy():
                                 dataframe_right = dataframe['Nazwisko i imię.1'].tolist()
 
                                 poslowie = dataframe_left + dataframe_right
-
-                                print(poslowie)
-                                print(name)
-
+                                # print(poslowie)
+                                # print(name)
                                 for posel in poslowie:
                                     if posel == name:
                                         partia_posla = nazwa_partii
@@ -357,94 +354,120 @@ def get_glosy():
     column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
-    id_poslow_list = get_id_poslow_list()
+    # Wyszukanie wszystkich id posiedzeń
+    full_id_posiedzen_list = get_id_posiedzen_list()
+    full_id_posiedzen_list.sort()
+    # Ograniczenie wyszukiwania głosowań posłów od jednego posiedzenia do drugiego
+    for i in full_id_posiedzen_list[full_id_posiedzen_list.index(id_pos_od):full_id_posiedzen_list.index(id_pos_do)+1]:
+        id_posiedzen_list.append(i)
+
+    # Wyszukanie wszystkich id posłów
+    full_id_poslow_list = get_id_poslow_list()
+    full_id_poslow_list.sort()
+    # Ograniczenie wyszukiwania głosowań posłów od jednego ID do drugiego
+    for j in full_id_poslow_list[full_id_poslow_list.index(id_posla_od):full_id_poslow_list.index(id_posla_do)+1]:
+        id_poslow_list.append(j)
+
+
     for id_posel in id_poslow_list:
+
         try:
-            url_glos_posla += id_posel
-            # Wczytanie strony głosowań posła
-            soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
-            url_glos_posla = url_glos_posla.strip(id_posel)
+            if found_glosowania:
+                url_glos_posla += id_posel
+                print(url_glos_posla)
+                # Wczytanie strony głosowań posła
+                soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
+                url_glos_posla = url_glos_posla.strip(id_posel)
+            else: soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
 
-            for link in soup.find_all('a'):
-                link = link.get('href')
-                if fnmatch.fnmatch(link, '*IdDnia=*'):
-                    id_glosowan_list = []
-                    id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
+            for id_pos in id_posiedzen_list:
+                temp_pos_link = '*IdDnia=' + id_pos
 
-                    temp_link = url_home_link + link
-                    print(temp_link)
+                for link in soup.find_all('a'):
+                    link = link.get('href')
+                    # print(link)
+                    # print(test)
+                    if fnmatch.fnmatch(link, temp_pos_link):
+                        verifier = 0
+                        temp_pos_link = temp_pos_link.strip(id_pos)
+                        id_glosowan_list = []
+                        id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
+                        found_glosowania = True
 
-                    soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
+                        temp_link = url_home_link + link
+                        print(temp_link)
 
-                    full_name = soup.find('h1').get_text()
-                    full_name = full_name[:full_name.index('Głosowania')]
+                        soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
 
-                    name = get_name(full_name)
-                    last_name = get_last_name(full_name)
-                    new_full_name = last_name + ' ' + name
+                        full_name = soup.find('h1').get_text()
+                        full_name = full_name[:full_name.index('Głosowania')]
 
-                    id_partii_posla = check_posel_id_partia(temp_link, new_full_name, partie_database_table)
+                        name = get_name(full_name)
+                        last_name = get_last_name(full_name)
+                        new_full_name = last_name + ' ' + name
 
-                    # Dataframe danych z głosowania posła na danym posiedzeniu
-                    dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
+                        id_partii_posla = check_posel_id_partia(temp_link, new_full_name, partie_database_table)
 
-                    # Usunięcie kolumny 'Godzina' z dataframe'u
-                    del dataframe['Godzina']
-                    # Wstawienie kolumny 'id_partia' i 'id_posel' z ich ID
-                    dataframe.insert(0, 'id_partia', id_partii_posla)
-                    dataframe.insert(1, 'id_posel', id_posel)
-                    # Zmiana nazw kolumn i usunięcie niepotrzebnego ostatniego wiersza z tabeli
-                    dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
-                    dataframe = dataframe[:-1]
+                        # Dataframe danych z głosowania posła na danym posiedzeniu
+                        dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
 
-                    # Iterowanie po tabeli głosowań z bazy danych
-                    for index1, row_glosowania in glosowania_database_table.iterrows():
-                        if row_glosowania['id_posiedzenia'] == int(id_posiedzenia):
-                            id_glosowania = row_glosowania['id_glosowania']
-                            opis = row_glosowania['opis']
-                            numer_glosowania = row_glosowania['nr_glosowania']
+                        # Usunięcie kolumny 'Godzina' z dataframe'u
+                        del dataframe['Godzina']
+                        # Wstawienie kolumny 'id_partia' i 'id_posel' z ich ID
+                        dataframe.insert(0, 'id_partia', id_partii_posla)
+                        dataframe.insert(1, 'id_posel', id_posel)
+                        # Zmiana nazw kolumn i usunięcie niepotrzebnego ostatniego wiersza z tabeli
+                        dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
+                        dataframe = dataframe[:-1]
 
-                            # Iterowanie po aktualnym dataframie w celu przypisania id_glosowania głosowaniom
-                            for index2, row_dataframe in dataframe.iterrows():
-                                numer_glosowania2 = row_dataframe['nr_glosowania']
-                                opis2 = row_dataframe['opis']
+                        # Iterowanie po tabeli głosowań z bazy danych
+                        for index1, row_glosowania in glosowania_database_table.iterrows():
+                            if row_glosowania['id_posiedzenia'] == int(id_posiedzenia):
+                                id_glosowania = row_glosowania['id_glosowania']
+                                opis = row_glosowania['opis']
+                                numer_glosowania = row_glosowania['nr_glosowania']
 
-                                # Jeśli numer głosowania i opis są takie same jak w tabeli z bazy danych,
-                                # dodanie id_glosowania do listy głosowań
-                                if numer_glosowania == int(numer_glosowania2) and opis == opis2:
-                                    id_glosowan_list.append(id_glosowania)
+                                # Iterowanie po aktualnym dataframie w celu przypisania id_glosowania głosowaniom
+                                for index2, row_dataframe in dataframe.iterrows():
+                                    numer_glosowania2 = row_dataframe['nr_glosowania']
+                                    opis2 = row_dataframe['opis']
+
+                                    # Jeśli numer głosowania i opis są takie same jak w tabeli z bazy danych,
+                                    # dodanie id_glosowania do listy głosowań
+                                    if numer_glosowania == int(numer_glosowania2) and opis == opis2:
+                                        id_glosowan_list.append(id_glosowania)
 
 
-                    # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
-                    del dataframe['opis']
-                    del dataframe['nr_glosowania']
-                    dataframe.insert(2, 'id_glosowania', id_glosowan_list)
+                        # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
+                        del dataframe['opis']
+                        del dataframe['nr_glosowania']
+                        dataframe.insert(2, 'id_glosowania', id_glosowan_list)
 
-                    counter += 1
-                    if counter % 100 == 0:
-                        print('\nRobie przerwe 10s\n')
-                        time.sleep(10)
-                    print('Jestem na ' + str(counter) + ' glosowaniu')
-                    # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
-                    joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-                    if counter == limit: break
-                else:
-                    # Weryfikacja/odświeżenie strony posła w celu sprawdzenia
-                    # czy na pewno istnieje na jego stronie zakładka z głosowaniami w przypadku, gdy jej nie wyszukano
-                    if verifier == 100: pass
-                    verifier += 1
-                    continue
+                        counter += 1
+                        print('Jestem na ' + str(counter) + ' glosowaniu')
+                        # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
+                        joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
+                        # break
+                    # else:
+                    #     # Odświeżenie strony posła, gdy nie znaleziono głosowań na jego stronie głosowań
+                    #     verifier += 1
+                    #
+                    #     if verifier == 500:
+                    #         print('Nie znalazłem głosowań posła: '+id_posel)
+                    #         print('Odświeżam stronę głosowań posła')
+                    #         found_glosowania = False
+                    #         break
+                    #     pass
+                    # if found_glosowania is False: break
+                # if found_glosowania is False: break
 
-                if counter == limit: break
-            if counter == limit: break
         except Exception as e:
             print(e)
             continue
-
+    print(test_list)
     print('Pobrane')
     # return joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
-
 
 
 # start = time.time()

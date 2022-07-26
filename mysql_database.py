@@ -43,7 +43,6 @@ create_table_glosy = '''CREATE TABLE glosy
                         FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
 
 
-
 # Funkcja do sprawdzenia czy partia istnieje w bazie danych na podstawie nazwy
 def partia_exists(cursor, nazwa):
     query = ('''SELECT nazwa FROM partie WHERE nazwa = %s''')
