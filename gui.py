@@ -3,42 +3,59 @@ from mysql_database import *
 
 def partie_gui(choice):
     global partie
+    start = time.time()
     if choice == 1:
         partie = get_partie()
         partie_status_label.config(text='Status: partie pobrane', fg='green')
     elif choice == 2:
         execute_partie(partie)
         partie_status_label.config(text='Status: partie dodane do bazy danych', fg='green')
-
-def posiedzenia_gui(choice):
-    global posiedzenia_dataframe
-    if choice == 1:
-        posiedzenia_dataframe = get_posiedzenia()
-        posiedzenia_status_label.config(text='Status: posiedzenia pobrane', fg='green')
-    elif choice == 2:
-        execute_posiedzenia(posiedzenia_dataframe)
-        posiedzenia_status_label.config(text='Status: posiedzenia dodane do bazy danych', fg='green')
+    end = time.time()
+    duration = str(round((end - start) / 60, 2)) + 'min'
+    partie_czas_label.config(text='Czas: '+duration)
 
 def poslowie_gui(choice):
     global poslowie_dataframe
+    start = time.time()
     if choice == 1:
         poslowie_dataframe = get_poslowie()
         poslowie_status_label.config(text='Status: posłowie pobrani', fg='green')
     elif choice == 2:
         execute_poslowie(poslowie_dataframe)
         poslowie_status_label.config(text='Status: poslowie dodani do bazy danych', fg='green')
+    end = time.time()
+    duration = str(round((end - start) / 60, 2)) + 'min'
+    poslowie_czas_label.config(text='Czas: '+duration)
+
+def posiedzenia_gui(choice):
+    global posiedzenia_dataframe
+    start = time.time()
+    if choice == 1:
+        posiedzenia_dataframe = get_posiedzenia()
+        posiedzenia_status_label.config(text='Status: posiedzenia pobrane', fg='green')
+    elif choice == 2:
+        execute_posiedzenia(posiedzenia_dataframe)
+        posiedzenia_status_label.config(text='Status: posiedzenia dodane do bazy danych', fg='green')
+    end = time.time()
+    duration = str(round((end - start) / 60, 2)) + 'min'
+    posiedzenia_czas_label.config(text='Czas: '+duration)
 
 def glosowania_gui(choice):
     global glosowania_dataframe
+    start = time.time()
     if choice == 1:
         glosowania_dataframe = get_glosowania()
         glosowania_status_label.config(text='Status: głosowania pobrane', fg='green')
     elif choice == 2:
         execute_glosowania(glosowania_dataframe)
         glosowania_status_label.config(text='Status: głosowania dodane do bazy danych', fg='green')
+    end = time.time()
+    duration = str(round((end - start) / 60, 2)) + 'min'
+    glosowania_czas_label.config(text='Czas: '+duration)
 
 def glosy_gui(choice):
     global glosy_dataframe
+    start = time.time()
 
     id_posla_od = glosy_id_posla_text_box_od.get()
     id_posla_do = glosy_id_posla_text_box_do.get()
@@ -58,6 +75,10 @@ def glosy_gui(choice):
     elif choice == 2:
         execute_glosy(glosy_dataframe)
         glosy_status_label.config(text='Status: głosy dodane do bazy danych', fg='green')
+
+    end = time.time()
+    duration = str(round((end - start) / 60, 2)) + 'min'
+    glosy_czas_label.config(text='Czas: '+duration)
 
 
 bg_colour = '#EAD8D5'
@@ -87,6 +108,9 @@ partie_import_button.grid(column=2, row=0)
 partie_status_label = tk.Label(root, text='Status:', font=font_status_label, bg=bg_colour, fg='black')
 partie_status_label.grid(column=3, row=0, padx=padx, sticky='w')
 
+partie_czas_label = tk.Label(root, text='Czas: ', font=font_status_label, bg=bg_colour, fg='black')
+partie_czas_label.grid(column=3, row=0, padx=padx, sticky='ws')
+
 # POSŁOWIE
 poslowie_label = tk.Label(root, text='Posłowie', font=font_label, bg=bg_colour, fg='black')
 poslowie_label.grid(column=0, row=1, padx=padx, sticky='w')
@@ -99,6 +123,9 @@ poslowie_import_button.grid(column=2, row=1)
 
 poslowie_status_label = tk.Label(root, text='Status:', font=font_status_label, bg=bg_colour, fg='black')
 poslowie_status_label.grid(column=3, row=1, padx=padx, sticky='w')
+
+poslowie_czas_label = tk.Label(root, text='Czas: ', font=font_status_label, bg=bg_colour, fg='black')
+poslowie_czas_label.grid(column=3, row=1, padx=padx, sticky='ws')
 
 # POSIEDZENIA
 posiedzenia_label = tk.Label(root, text='Posiedzenia', font=font_label, bg=bg_colour, fg='black')
@@ -113,6 +140,9 @@ posiedzenia_import_button.grid(column=2, row=2)
 posiedzenia_status_label = tk.Label(root, text='Status:', font=font_status_label, bg=bg_colour, fg='black')
 posiedzenia_status_label.grid(column=3, row=2, padx=padx, sticky='w')
 
+posiedzenia_czas_label = tk.Label(root, text='Czas: ', font=font_status_label, bg=bg_colour, fg='black')
+posiedzenia_czas_label.grid(column=3, row=2, padx=padx, sticky='ws')
+
 # GŁOSOWANIA
 glosowania_label = tk.Label(root, text='Głosowania', font=font_label, bg=bg_colour, fg='black')
 glosowania_label.grid(column=0, row=3, padx=padx, sticky='w')
@@ -126,6 +156,9 @@ glosowania_import_button.grid(column=2, row=3)
 glosowania_status_label = tk.Label(root, text='Status:', font=font_status_label, bg=bg_colour, fg='black')
 glosowania_status_label.grid(column=3, row=3, padx=padx, sticky='w')
 
+glosowania_czas_label = tk.Label(root, text='Czas: ', font=font_status_label, bg=bg_colour, fg='black')
+glosowania_czas_label.grid(column=3, row=3, padx=padx, sticky='ws')
+
 # GŁOSY
 glosy_label = tk.Label(root, text='Głosy', font=font_label, bg=bg_colour, fg='black')
 glosy_label.grid(column=0, row=4, padx=padx, sticky='w')
@@ -138,6 +171,9 @@ glosy_import_button.grid(column=2, row=4)
 
 glosy_status_label = tk.Label(root, text='Status:', font=font_status_label, bg=bg_colour, fg='black')
 glosy_status_label.grid(column=3, row=4, padx=padx, sticky='w')
+
+glosy_czas_label = tk.Label(root, text='Czas: ', font=font_status_label, bg=bg_colour, fg='black')
+glosy_czas_label.grid(column=3, row=4, padx=padx, sticky='ws')
 
 glosy_id_posla_label_od = tk.Label(root, text='ID posła od:', font=('TkMenuFont', 15), bg=bg_colour, fg='black')
 glosy_id_posla_label_od.grid(column=1, row=4, sticky='s')
