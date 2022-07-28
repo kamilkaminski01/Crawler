@@ -3,14 +3,25 @@ import bs4
 import fnmatch
 import pandas as pd
 import mysql.connector
+import pymysql
 import time
 
+# Połączenie do lokalnej bazy danych MySQL
 db = mysql.connector.connect(
-    host = "localhost",
-    user = "root",
-    passwd = "kamil123",
-    database = "testdatabase"
+    host="localhost",
+    user="root",
+    passwd="kamil123",
+    database="testdatabase"
 )
+cursor = db.cursor()
+
+# Połączenie do bazy danych MySQL w chmurze AWS
+# db = pymysql.connect(
+#     host=,
+#     user=,
+#     password=,
+#     database=
+# )
 
 url_nr_posiedzenia = '*agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=*'
 url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
@@ -21,6 +32,7 @@ url_glosowan = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdD
 url_poslowie = 'https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C'
 url_posla = '*posel.xsp?id=*'
 url_glos_posla = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
+
 
 # Funkcja do wypełnienia listy id_posiedzen
 def get_id_posiedzen_list():
@@ -38,6 +50,7 @@ def get_id_posiedzen_list():
 
     return id_posiedzen_list
 
+
 # Funkcja do wypełnienia listy id_posłów
 def get_id_poslow_list():
     id_poslow_list = []
@@ -54,31 +67,40 @@ def get_id_poslow_list():
 
     return id_poslow_list
 
+
 def get_name(full_name):
     result = None
     while result is None:
         try:
-            if full_name.count(' ') == 1: return full_name.split(' ')[0]
-            elif full_name.count(' ') == 2: return ' '.join(full_name.split(' ', 2)[:2])
-            elif full_name.count(' ') == 3: return full_name.split(' ')[0]
+            if full_name.count(' ') == 1:
+                return full_name.split(' ')[0]
+            elif full_name.count(' ') == 2:
+                return ' '.join(full_name.split(' ', 2)[:2])
+            elif full_name.count(' ') == 3:
+                return full_name.split(' ')[0]
             # else: return full_name.split(' ')[0]
 
         except Exception as e:
             print(e)
             continue
 
+
 def get_last_name(full_name):
     result = None
     while result is None:
         try:
-            if full_name.count(' ') == 1: return full_name.split(' ')[1]
-            elif full_name.count(' ') == 2: return full_name.split(' ')[2]
-            elif full_name.count(' ') == 3: return ' '.join(full_name.split(' ')[1:])
+            if full_name.count(' ') == 1:
+                return full_name.split(' ')[1]
+            elif full_name.count(' ') == 2:
+                return full_name.split(' ')[2]
+            elif full_name.count(' ') == 3:
+                return ' '.join(full_name.split(' ')[1:])
             # else: return ' '.join(full_name.split(' ')[:-1])
 
         except Exception as e:
             print(e)
             continue
+
 
 # Funkcja do wychywcenia partii
 def get_partie():
@@ -119,6 +141,7 @@ def get_partie():
 
     print('Pobrane')
     return nazwy_partii
+
 
 # Funkcja do wychwycenia id, numeru i daty posiedzeń
 def get_posiedzenia():
@@ -161,10 +184,10 @@ def get_posiedzenia():
             date = date.strip(' r.')
             date = date.replace(' ', '-')
             for word, replacment in miesiace.items(): date = date.replace(word, replacment)
-            if len(date) == 9: date = '0'+date
+            if len(date) == 9: date = '0' + date
 
-            year = date[date.index('-')+4:]
-            month = date[date.index('-'):date.index('-')+4].strip('-')
+            year = date[date.index('-') + 4:]
+            month = date[date.index('-'):date.index('-') + 4].strip('-')
             day = date[:date.index('-')]
             date = year + '-' + month + '-' + day
 
@@ -188,6 +211,7 @@ def get_posiedzenia():
     print('Pobrane')
     # return dataframe.to_csv('posiedzenia.csv', index=False)
     return dataframe
+
 
 # Funkcja do wychwycenia numerów, opisów głosowań i przypisanie im ich id_posiedzeń
 def get_glosowania():
@@ -230,6 +254,7 @@ def get_glosowania():
     # return joined_dataframe.to_csv('glosowanie.csv', index=False)
     return joined_dataframe
 
+
 # Funkcja do wychywcenia id, imiona i nazwiska posłów
 def get_poslowie():
     print("Sprawdzam posłów...")
@@ -270,6 +295,7 @@ def get_poslowie():
     # return dataframe.to_csv('poslowie.csv', index=False)
     return dataframe
 
+
 # Funkcja do wychwycenia głosów posłów
 def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
     print("Sprawdzam głosy...")
@@ -284,6 +310,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
         table = pd.read_sql(sql, db)
         # db.close()
         return table
+
     # Funkcja do wczytania tabeli partii z bazy danych, aby pobrać z niej id_partii
     def get_database_partie():
         sql = '''SELECT * FROM partie'''
@@ -346,7 +373,6 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                 id_partii_posla = row['id_partia']
                 return id_partii_posla
 
-
     column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
@@ -354,22 +380,22 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
     full_id_posiedzen_list = get_id_posiedzen_list()
     full_id_posiedzen_list.sort()
     # Ograniczenie wyszukiwania głosowań posłów od jednego posiedzenia do drugiego
-    for i in full_id_posiedzen_list[full_id_posiedzen_list.index(id_pos_od):full_id_posiedzen_list.index(id_pos_do)+1]:
+    for i in full_id_posiedzen_list[
+             full_id_posiedzen_list.index(id_pos_od):full_id_posiedzen_list.index(id_pos_do) + 1]:
         id_posiedzen_list.append(i)
 
     # Wyszukanie wszystkich id posłów
     full_id_poslow_list = get_id_poslow_list()
     full_id_poslow_list.sort()
     # Ograniczenie wyszukiwania głosowań posłów od jednego ID do drugiego
-    for j in full_id_poslow_list[full_id_poslow_list.index(id_posla_od):full_id_poslow_list.index(id_posla_do)+1]:
+    for j in full_id_poslow_list[full_id_poslow_list.index(id_posla_od):full_id_poslow_list.index(id_posla_do) + 1]:
         id_poslow_list.append(j)
 
-
     for id_posel in id_poslow_list:
-        counter = 0
         url_glos_posla += id_posel
 
         for id_pos in id_posiedzen_list:
+            counter = 0
             found_glosowanie = False
             temp_pos_link = '*IdDnia=' + id_pos
 
@@ -412,7 +438,8 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                             dataframe.insert(0, 'id_partia', id_partii_posla)
                             dataframe.insert(1, 'id_posel', id_posel)
                             # Zmiana nazw kolumn i usunięcie niepotrzebnego ostatniego wiersza z tabeli
-                            dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
+                            dataframe = dataframe.rename(
+                                columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
                             dataframe = dataframe[:-1]
 
                             # Iterowanie po tabeli głosowań z bazy danych
@@ -432,7 +459,6 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                                         if numer_glosowania == int(numer_glosowania2) and opis == opis2:
                                             id_glosowan_list.append(id_glosowania)
 
-
                             # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
                             del dataframe['opis']
                             del dataframe['nr_glosowania']
@@ -442,7 +468,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                             joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
 
                     if found_glosowanie is False:
-                        print('Nie wczytano głosowania posła')
+                        print('Nie wczytano głosowania posła, wczytuję jeszcze raz')
                         counter += 1
                         if counter == 3:
                             print('Poseł nie był na tym posiedzeniu')
@@ -459,7 +485,6 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
     print('Pobrane')
     # joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
-
 
 # start = time.time()
 # get_partie()

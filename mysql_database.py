@@ -1,15 +1,4 @@
-import mysql.connector
-import pandas as pd
 from html_scraper import *
-
-# db = mysql.connector.connect(
-#     host = "localhost",
-#     user = "root",
-#     passwd = "kamil123",
-#     database = "testdatabase"
-# )
-
-cursor = db.cursor()
 
 create_table_partie = '''CREATE TABLE partie 
                         (id_partia int PRIMARY KEY AUTO_INCREMENT, 
@@ -160,27 +149,6 @@ def execute_glosy(glosy_dataframe):
         else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'])
     print('Głosy dodane do bazy danych')
     db.commit()
-
-
-# start = time.time()
-
-# partie = get_partie()
-# execute_partie(partie)
-
-# posiedzenia_dataframe = get_posiedzenia()
-# execute_posiedzenia(posiedzenia_dataframe)
-
-# glosowania_dataframe = get_glosowania()
-# execute_glosowania(glosowania_dataframe)
-
-# poslowie_dataframe = get_poslowie()
-# execute_poslowie(poslowie_dataframe)
-
-# glosy_dataframe = get_glosy()
-# execute_glosy(glosy_dataframe)
-
-# end = time.time()
-# print("\nZajęło: " + str(round((end-start)/60,2)) + 'min')
 
 
 # cursor.execute(create_table_partie)
