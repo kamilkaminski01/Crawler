@@ -198,13 +198,13 @@ def get_posiedzenia():
         dataframe = dataframe.drop(date_column, axis=1)
         dataframe[date_column] = new_date_list
 
-        # Dodanie kolumny 'id_posiedzenia' z poszczególnymi id posiedzień
-        dataframe['id_posiedzenia'] = id_posiedzen_list
-        dataframe = dataframe[['id_posiedzenia', 'nr_posiedzenia', 'data']]
+        # Dodanie kolumny 'id' z poszczególnymi id posiedzień
+        dataframe['id'] = id_posiedzen_list
+        dataframe = dataframe[['id', 'nr_posiedzenia', 'data']]
 
-        # Zmiana typu kolumny nr_posiedzenia i id_posiedzenia ze string na int
+        # Zmiana typu kolumny nr_posiedzenia i id ze string na int
         dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
-        dataframe['id_posiedzenia'] = dataframe['id_posiedzenia'].astype(int)
+        dataframe['id'] = dataframe['id'].astype(int)
     except Exception as e:
         print(e)
 
@@ -262,7 +262,7 @@ def get_poslowie():
     # Wychywcenie ID posłów z linków
     id_poslow_list = get_id_poslow_list()
 
-    column_names = ['id_posel', 'imie', 'nazwisko']
+    column_names = ['id', 'imie', 'nazwisko']
     dataframe = pd.DataFrame(columns=column_names)
     names = []
     last_names = []
@@ -287,7 +287,7 @@ def get_poslowie():
                 last_names.append(last_name)
 
     # Ustawienie list jako kolumny w dataframe'ie
-    dataframe['id_posel'] = id_poslow_list
+    dataframe['id'] = id_poslow_list
     dataframe['imie'] = names
     dataframe['nazwisko'] = last_names
 
@@ -370,7 +370,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
         # Iterowanie po tabeli partii z bazy danych
         for index, row in partie.iterrows():
             if row['nazwa'] == partia_posla:
-                id_partii_posla = row['id_partia']
+                id_partii_posla = row['id']
                 return id_partii_posla
 
     column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos']
@@ -445,7 +445,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                             # Iterowanie po tabeli głosowań z bazy danych
                             for index1, row_glosowania in glosowania_database_table.iterrows():
                                 if row_glosowania['id_posiedzenia'] == int(id_posiedzenia):
-                                    id_glosowania = row_glosowania['id_glosowania']
+                                    id_glosowania = row_glosowania['id']
                                     opis = row_glosowania['opis']
                                     numer_glosowania = row_glosowania['nr_glosowania']
 

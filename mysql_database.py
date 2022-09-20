@@ -1,35 +1,35 @@
 from html_scraper import *
 
 create_table_partie = '''CREATE TABLE partie 
-                        (id_partia int PRIMARY KEY AUTO_INCREMENT, 
+                        (id int PRIMARY KEY AUTO_INCREMENT, 
                         nazwa VARCHAR(50) NOT NULL)'''
 
 create_table_poslowie = '''CREATE TABLE poslowie 
-                            (id_posel int PRIMARY KEY, 
+                            (id int PRIMARY KEY, 
                             imie VARCHAR(30) NOT NULL, 
                             nazwisko VARCHAR(30) NOT NULL)'''
 
 create_table_posiedzenia = '''CREATE TABLE posiedzenia 
-                                (id_posiedzenia int PRIMARY KEY, 
+                                (id int PRIMARY KEY, 
                                 nr_posiedzenia int NOT NULL, 
                                 data DATE NOT NULL)'''
 
 create_table_glosowania = '''CREATE TABLE glosowania 
-                            (id_glosowania int PRIMARY KEY AUTO_INCREMENT, 
+                            (id int PRIMARY KEY AUTO_INCREMENT, 
                             id_posiedzenia int NOT NULL, 
                             nr_glosowania int NOT NULL, 
                             opis VARCHAR(2000) NOT NULL, 
-                            FOREIGN KEY(id_posiedzenia) REFERENCES posiedzenia(id_posiedzenia))'''
+                            FOREIGN KEY(id_posiedzenia) REFERENCES posiedzenia(id))'''
 
 create_table_glosy = '''CREATE TABLE glosy 
-                        (id_glos int PRIMARY KEY AUTO_INCREMENT, 
+                        (id int PRIMARY KEY AUTO_INCREMENT, 
                         id_partia int NOT NULL, 
                         id_posel int NOT NULL, 
                         id_glosowania int NOT NULL,
                         glos ENUM('Za', 'Przeciw', 'Wstrzymał się', 'Nie głosował', 'Głos oddany na listę') NOT NULL, 
-                        FOREIGN KEY(id_partia) REFERENCES partie(id_partia),
-                        FOREIGN KEY(id_posel) REFERENCES poslowie(id_posel), 
-                        FOREIGN KEY(id_glosowania) REFERENCES glosowania(id_glosowania))'''
+                        FOREIGN KEY(id_partia) REFERENCES partie(id),
+                        FOREIGN KEY(id_posel) REFERENCES poslowie(id), 
+                        FOREIGN KEY(id_glosowania) REFERENCES glosowania(id))'''
 
 
 # Funkcja do sprawdzenia czy partia istnieje w bazie danych na podstawie nazwy
@@ -57,13 +57,13 @@ def execute_partie(partie):
 
 # Funkcja do sprawdzenia czy posel istnieje w bazie danych na podstawie ID
 def posel_exists(cursor, id_posel):
-    query = ('''SELECT id_posel FROM poslowie WHERE id_posel = %s''')
+    query = ('''SELECT id FROM poslowie WHERE id = %s''')
     cursor.execute(query, (id_posel,))
     return cursor.fetchone() is not None
 
 # Funkcja do wstawienia danych o pośle
 def insert_posel(cursor, id_posel, imie, nazwisko):
-    insert_into_poslowie = ('''INSERT INTO poslowie (id_posel, imie, nazwisko) VALUES (%s,%s,%s)''')
+    insert_into_poslowie = ('''INSERT INTO poslowie (id, imie, nazwisko) VALUES (%s,%s,%s)''')
     row_to_insert = (id_posel, imie, nazwisko)
     cursor.execute(insert_into_poslowie, row_to_insert)
 
@@ -72,21 +72,21 @@ def execute_poslowie(poslowie_dataframe):
     print('Importuje posłów do bazy danych')
     for index, row in poslowie_dataframe.iterrows():
         # Jeśli poseł istnieje w bazie danych, przejście dalej
-        if posel_exists(cursor, row['id_posel']): pass
+        if posel_exists(cursor, row['id']): pass
         # Jeśli poseł nie istnieje w bazie danych, dodanie rzędu
-        else: insert_posel(cursor, row['id_posel'], row['imie'], row['nazwisko'])
+        else: insert_posel(cursor, row['id'], row['imie'], row['nazwisko'])
     print('Posłowie dodani do bazy danych')
     db.commit()
 
-# Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id_posiedzenia
+# Funkcja do sprawdzenia czy posiedzenie istnieje w bazie danych na podstawie id
 def posiedzenie_exists(cursor, id_posiedzenia):
-    query = ('''SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s''')
+    query = ('''SELECT id FROM posiedzenia WHERE id = %s''')
     cursor.execute(query, (id_posiedzenia,))
     return cursor.fetchone() is not None
 
 # Funkcja do wstawienia danych o posiedzeniu
 def insert_posiedzenia(cursor, id_posiedzenia, nr_posiedzenia, data):
-    insert_into_posiedzenia = ('''INSERT INTO posiedzenia (id_posiedzenia, nr_posiedzenia, data) VALUES (%s,%s,%s)''')
+    insert_into_posiedzenia = ('''INSERT INTO posiedzenia (id, nr_posiedzenia, data) VALUES (%s,%s,%s)''')
     row_to_insert = (id_posiedzenia, nr_posiedzenia, data)
     cursor.execute(insert_into_posiedzenia, row_to_insert)
 
@@ -95,9 +95,9 @@ def execute_posiedzenia(posiedzenia_dataframe):
     print('Importuje posiedzenia do bazy danych...')
     for index, row in posiedzenia_dataframe.iterrows():
         # Jeśli posiedzenie istnieje w bazie danych, przejście dalej
-        if posiedzenie_exists(cursor, row['id_posiedzenia']): pass
+        if posiedzenie_exists(cursor, row['id']): pass
         # Jeśli posiedzenie nie istnieje w bazie danych, dodanie rzędu
-        else: insert_posiedzenia(cursor, row['id_posiedzenia'], row['nr_posiedzenia'], row['data'])
+        else: insert_posiedzenia(cursor, row['id'], row['nr_posiedzenia'], row['data'])
     db.commit()
     print('Posiedzenia dodane do bazy danych')
 
@@ -111,7 +111,7 @@ def glosowanie_exists(cursor, nr_glosowania, opis):
 # Funkcja do wstawienia danych o głosowaniu
 def insert_glosowanie(cursor, id_posiedzenia, nr_glosowania, opis):
     insert_into_glosowania = ('''INSERT INTO glosowania SET 
-                                id_posiedzenia = (SELECT id_posiedzenia FROM posiedzenia WHERE id_posiedzenia = %s), 
+                                id_posiedzenia = (SELECT id FROM posiedzenia WHERE id = %s), 
                                 nr_glosowania = %s, opis = %s''')
     row_to_insert = (id_posiedzenia, nr_glosowania, opis)
     cursor.execute(insert_into_glosowania, row_to_insert)
@@ -134,9 +134,9 @@ def glos_exists(cursor, id_posel, id_glosowania):
 
 # Funkcja do wstawienia danych o głosie
 def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
-    insert_into_glosy = ('''INSERT INTO glosy SET id_partia = (SELECT id_partia FROM partie WHERE id_partia = %s), 
-                        id_posel = (SELECT id_posel FROM poslowie WHERE id_posel = %s), 
-                        id_glosowania = (SELECT id_glosowania FROM glosowania WHERE id_glosowania = %s), 
+    insert_into_glosy = ('''INSERT INTO glosy SET id_partia = (SELECT id FROM partie WHERE id = %s), 
+                        id_posel = (SELECT id FROM poslowie WHERE id = %s), 
+                        id_glosowania = (SELECT id FROM glosowania WHERE id = %s), 
                         glos = %s''')
     row_to_insert = (id_partia, id_posel, id_glosowania, glos)
     cursor.execute(insert_into_glosy, row_to_insert)
