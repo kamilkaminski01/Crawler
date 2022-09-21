@@ -27,6 +27,7 @@ create_table_glosy = '''CREATE TABLE glosy
                         id_posel int NOT NULL, 
                         id_glosowania int NOT NULL,
                         glos ENUM('Za', 'Przeciw', 'Wstrzymał się', 'Nie głosował', 'Głos oddany na listę') NOT NULL, 
+                        data_glosu DATE NOT NULL,
                         FOREIGN KEY(id_partia) REFERENCES partie(id),
                         FOREIGN KEY(id_posel) REFERENCES poslowie(id), 
                         FOREIGN KEY(id_glosowania) REFERENCES glosowania(id))'''
@@ -133,12 +134,13 @@ def glos_exists(cursor, id_posel, id_glosowania):
     return cursor.fetchone() is not None
 
 # Funkcja do wstawienia danych o głosie
-def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos):
+def insert_glos(cursor, id_partia, id_posel, id_glosowania, glos, data_glosu):
     insert_into_glosy = ('''INSERT INTO glosy SET id_partia = (SELECT id FROM partie WHERE id = %s), 
                         id_posel = (SELECT id FROM poslowie WHERE id = %s), 
                         id_glosowania = (SELECT id FROM glosowania WHERE id = %s), 
-                        glos = %s''')
-    row_to_insert = (id_partia, id_posel, id_glosowania, glos)
+                        glos = %s,
+                        data_glosu = %s''')
+    row_to_insert = (id_partia, id_posel, id_glosowania, glos, data_glosu)
     cursor.execute(insert_into_glosy, row_to_insert)
 
 # Wstawienie głosów do bazy danych
@@ -146,7 +148,7 @@ def execute_glosy(glosy_dataframe):
     print('Importuje głosy do bazy danych')
     for index, row in glosy_dataframe.iterrows():
         if glos_exists(cursor, row['id_posel'], row['id_glosowania']): pass
-        else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'])
+        else: insert_glos(cursor, row['id_partia'], row['id_posel'], row['id_glosowania'], row['glos'], row['data_glosu'])
     print('Głosy dodane do bazy danych')
     db.commit()
 

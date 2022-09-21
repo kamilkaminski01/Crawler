@@ -373,7 +373,7 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                 id_partii_posla = row['id']
                 return id_partii_posla
 
-    column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos']
+    column_names = ['id_partia', 'id_posel', 'id_glosowania', 'glos', 'data_glosu']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
     # Wyszukanie wszystkich id posiedzeń
@@ -420,12 +420,19 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
 
                             soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
 
-                            full_name = soup.find('h1').get_text()
-                            full_name = full_name[:full_name.index('Głosowania')]
+                            header_tag = soup.find('h1').get_text()
+                            full_name = header_tag[:header_tag.index('Głosowania')]
 
                             name = get_name(full_name)
                             last_name = get_last_name(full_name)
                             new_full_name = last_name + ' ' + name
+
+                            date = header_tag[header_tag.index('dniu '):header_tag.index(' na')].strip('dniu ')
+
+                            year = date[date.index('-') + 4:]
+                            month = date[date.index('-'):date.index('-') + 4].strip('-')
+                            day = date[:date.index('-')]
+                            date = year + '-' + month + '-' + day
 
                             id_partii_posla = check_posel_id_partia(temp_link, new_full_name, partie_database_table)
 
@@ -459,10 +466,13 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
                                         if numer_glosowania == int(numer_glosowania2) and opis == opis2:
                                             id_glosowan_list.append(id_glosowania)
 
-                            # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań
+                            # Usunięcie kolumny opis, nr_glosowania i wstawienie kolumny 'id_głosowania' z listą id głosowań,
+                            # kolumny data_glosu i wypełnienie kolumny datą głosu
                             del dataframe['opis']
                             del dataframe['nr_glosowania']
                             dataframe.insert(2, 'id_glosowania', id_glosowan_list)
+                            dataframe.insert(3, 'data_glosu', date)
+                            dataframe['data_glosu'] = dataframe['data_glosu'].fillna(method='ffill')
 
                             # Przyłączenie danych z aktualnego dataframe'u głosów posła do ostatecznej tabeli
                             joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
