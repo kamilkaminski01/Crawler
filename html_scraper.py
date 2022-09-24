@@ -7,21 +7,23 @@ import pymysql
 import time
 
 # Połączenie do lokalnej bazy danych MySQL
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    passwd="kamil123",
-    database="testdatabase"
+# db = mysql.connector.connect(
+#     host="localhost",
+#     user="root",
+#     passwd="kamil123",
+#     database="testdatabase"
+# )
+
+
+# Połączenie do bazy danych MySQL w AWS
+db = pymysql.connect(
+    host="gov-crawler.ces9mzhykkcv.eu-central-1.rds.amazonaws.com",
+    user="admin",
+    password="i11ABnAs3KIp7IrwgOhkYQlPF9E3hxH1",
+    database="gov-crawler"
 )
 cursor = db.cursor()
 
-# Połączenie do bazy danych MySQL w chmurze AWS
-# db = pymysql.connect(
-#     host=,
-#     user=,
-#     password=,
-#     database=
-# )
 
 url_nr_posiedzenia = '*agent.xsp?symbol=glosowania&NrKadencji=9&NrPosiedzenia=*'
 url_home_link = 'https://www.sejm.gov.pl/Sejm9.nsf/'
@@ -270,26 +272,30 @@ def get_poslowie():
     soup = bs4.BeautifulSoup(requests.get(url_poslowie, verify=True).text, 'html.parser')
 
     # Wychwycenie imion wszystkich posłów
-    for link in soup.find_all('a'):
-        link = link.get('href')
-        if fnmatch.fnmatch(link, url_posla):
+    try:
+        for link in soup.find_all('a'):
+            link = link.get('href')
+            if fnmatch.fnmatch(link, url_posla):
 
-            link = url_home_link2 + link
-            print(link)
-            soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
+                link = url_home_link2 + link
+                print(link)
+                soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
 
-            for full_name in soup.find_all('h1'):
-                full_name = full_name.get_text()
+                for full_name in soup.find_all('h1'):
+                    full_name = full_name.get_text()
 
-                name = get_name(full_name)
-                names.append(name)
-                last_name = get_last_name(full_name)
-                last_names.append(last_name)
+                    name = get_name(full_name)
+                    names.append(name)
+                    last_name = get_last_name(full_name)
+                    last_names.append(last_name)
 
-    # Ustawienie list jako kolumny w dataframe'ie
-    dataframe['id'] = id_poslow_list
-    dataframe['imie'] = names
-    dataframe['nazwisko'] = last_names
+        # Ustawienie list jako kolumny w dataframe'ie
+        dataframe['id'] = id_poslow_list
+        dataframe['imie'] = names
+        dataframe['nazwisko'] = last_names
+    except Exception as e:
+        print(e)
+        pass
 
     print('Pobrane')
     # return dataframe.to_csv('poslowie.csv', index=False)
