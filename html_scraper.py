@@ -406,12 +406,11 @@ def get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do):
             temp_pos_link = '*IdDnia=' + id_pos
 
             while found_glosowanie is False:
-
-                # Wczytanie strony głosowania posła
-                soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
-                print(url_glos_posla)
-
                 try:
+                    # Wczytanie strony głosowania posła
+                    soup = bs4.BeautifulSoup(requests.get(url_glos_posla, verify=True).text, 'html.parser')
+                    print(url_glos_posla)
+
                     for link in soup.find_all('a'):
                         link = link.get('href')
                         if fnmatch.fnmatch(link, temp_pos_link):
