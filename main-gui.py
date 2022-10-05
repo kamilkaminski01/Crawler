@@ -1,57 +1,68 @@
+import time
 import tkinter as tk
-from mysql_database import *
+
+from database.executes import (execute_deputies, execute_parties,
+                               execute_sittings, execute_votes,
+                               execute_votings)
+from html_scraper import (get_deputies, get_parties, get_sittings, get_votes,
+                          get_votings)
+
 
 def partie_gui(choice):
     global partie
     start = time.time()
     if choice == 1:
-        partie = get_partie()
+        partie = get_parties()
         partie_status_label.config(text='Status: partie pobrane', fg='green')
     elif choice == 2:
-        execute_partie(partie)
+        execute_parties(partie)
         partie_status_label.config(text='Status: partie dodane do bazy danych', fg='green')
     end = time.time()
     duration = str(round((end - start) / 60, 2)) + 'min'
     partie_czas_label.config(text='Czas: '+duration)
 
+
 def poslowie_gui(choice):
     global poslowie_dataframe
     start = time.time()
     if choice == 1:
-        poslowie_dataframe = get_poslowie()
+        poslowie_dataframe = get_deputies()
         poslowie_status_label.config(text='Status: posłowie pobrani', fg='green')
     elif choice == 2:
-        execute_poslowie(poslowie_dataframe)
+        execute_deputies(poslowie_dataframe)
         poslowie_status_label.config(text='Status: poslowie dodani do bazy danych', fg='green')
     end = time.time()
     duration = str(round((end - start) / 60, 2)) + 'min'
     poslowie_czas_label.config(text='Czas: '+duration)
 
+
 def posiedzenia_gui(choice):
     global posiedzenia_dataframe
     start = time.time()
     if choice == 1:
-        posiedzenia_dataframe = get_posiedzenia()
+        posiedzenia_dataframe = get_sittings()
         posiedzenia_status_label.config(text='Status: posiedzenia pobrane', fg='green')
     elif choice == 2:
-        execute_posiedzenia(posiedzenia_dataframe)
+        execute_sittings(posiedzenia_dataframe)
         posiedzenia_status_label.config(text='Status: posiedzenia dodane do bazy danych', fg='green')
     end = time.time()
     duration = str(round((end - start) / 60, 2)) + 'min'
     posiedzenia_czas_label.config(text='Czas: '+duration)
 
+
 def glosowania_gui(choice):
     global glosowania_dataframe
     start = time.time()
     if choice == 1:
-        glosowania_dataframe = get_glosowania()
+        glosowania_dataframe = get_votings()
         glosowania_status_label.config(text='Status: głosowania pobrane', fg='green')
     elif choice == 2:
-        execute_glosowania(glosowania_dataframe)
+        execute_votings(glosowania_dataframe)
         glosowania_status_label.config(text='Status: głosowania dodane do bazy danych', fg='green')
     end = time.time()
     duration = str(round((end - start) / 60, 2)) + 'min'
     glosowania_czas_label.config(text='Czas: '+duration)
+
 
 def glosy_gui(choice):
     global glosy_dataframe
@@ -70,10 +81,10 @@ def glosy_gui(choice):
     elif len(id_posla_do) == 2: id_posla_do = '0'+id_posla_do
 
     if choice == 1:
-        glosy_dataframe = get_glosy(id_posla_od, id_posla_do, id_pos_od, id_pos_do)
+        glosy_dataframe = get_votes(id_posla_od, id_posla_do, id_pos_od, id_pos_do)
         glosy_status_label.config(text='Status: głosy pobrane', fg='green')
     elif choice == 2:
-        execute_glosy(glosy_dataframe)
+        execute_votes(glosy_dataframe)
         glosy_status_label.config(text='Status: głosy dodane do bazy danych', fg='green')
 
     end = time.time()
