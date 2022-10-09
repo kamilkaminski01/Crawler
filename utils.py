@@ -7,6 +7,30 @@ import requests  # type: ignore
 from urls_variables import db, url_deputies, url_deputy, url_sitting
 
 
+def load_site(url):
+    loaded = False
+    while loaded is False:
+        try:
+            soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+            loaded = True
+            return soup
+        except Exception as e:
+            print(f"Loading site failed: {e}")
+            continue
+
+
+def load_dataframe_with_pandas(url):
+    loaded = False
+    while loaded is False:
+        try:
+            dataframe = pd.read_html(url, encoding='utf-8')[0]
+            loaded = True
+            return dataframe
+        except Exception as e:
+            print(f"Loading dataframe failed: {e}")
+            continue
+
+
 def get_id_sittings_list():
     id_sittings_list = []
     try:

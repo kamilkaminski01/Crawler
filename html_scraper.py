@@ -1,15 +1,14 @@
 import fnmatch
 
-import bs4
 import pandas as pd
-import requests  # type: ignore
 
 from urls_variables import (url_deputies, url_deputy, url_home_link,
                             url_home_link2, url_nr_sitting, url_party_voting,
                             url_sitting, url_vote_deputy, url_voting)
 from utils import (get_id_deputies_list, get_id_sittings_list, get_last_name,
                    get_name, get_parties_from_database,
-                   get_votes_from_database)
+                   get_votes_from_database, load_dataframe_with_pandas,
+                   load_site)
 
 
 def get_parties():
@@ -20,16 +19,15 @@ def get_parties():
 
     for id in id_sittings_list:
         url = url_voting + id
+        soup = load_site(url)
         print(url)
-        soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
-
         url.strip(id)
         try:
             for link in soup.find_all('a'):
                 link = link.get('href')
                 if fnmatch.fnmatch(link, url_nr_sitting):
                     link = url_home_link + link
-                    dataframe = pd.read_html(link, encoding='utf-8')[0]
+                    dataframe = load_dataframe_with_pandas(link)
                     parties = dataframe['Klub/Koło'].tolist()
 
                     for party in parties:
@@ -65,7 +63,7 @@ def get_sittings():
     id_sittings_list = get_id_sittings_list()
     dataframe = pd.DataFrame()
     try:
-        dataframe = pd.read_html(url_sitting, encoding='utf-8')[0]
+        dataframe = load_dataframe_with_pandas(url_sitting)
         dataframe = dataframe.drop(['Liczba głosowań', 'Unnamed: 3'], axis=1)
         dataframe = dataframe.rename(columns={'Nr pos. Sejmu': 'nr_posiedzenia', 'Data pos. Sejmu': 'data'})
         dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].fillna(method='ffill')
@@ -112,9 +110,8 @@ def get_votings():
     for id in id_sittings_list:
         url = url_voting + id
         print(url)
-
         try:
-            dataframe = pd.read_html(url, encoding='utf-8')[0]
+            dataframe = load_dataframe_with_pandas(url)
             del dataframe['Godzina']
             dataframe = dataframe.rename(columns={'Nr': 'nr_glosowania', 'Temat': 'opis'})
             dataframe.insert(1, 'id_posiedzenia', id)
@@ -133,7 +130,6 @@ def get_votings():
 
 def get_deputies():
     print("Checking deputies...")
-
     id_deputies_list = get_id_deputies_list()
 
     column_names = ['id', 'imie', 'nazwisko']
@@ -142,14 +138,13 @@ def get_deputies():
     last_names = []
 
     try:
-        soup = bs4.BeautifulSoup(requests.get(url_deputies, verify=True).text, 'html.parser')
+        soup = load_site(url_deputies)
         for link in soup.find_all('a'):
             link = link.get('href')
             if fnmatch.fnmatch(link, url_deputy):
                 link = url_home_link2 + link
+                soup = load_site(link)
                 print(link)
-                soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
-
                 for full_name in soup.find_all('h1'):
                     full_name = full_name.get_text()
                     name = get_name(full_name)
@@ -162,7 +157,6 @@ def get_deputies():
         dataframe['nazwisko'] = last_names
     except Exception as e:
         print(f"Get deputies: {e}")
-        pass
 
     print("Downloaded")
     # return dataframe.to_csv('poslowie.csv', index=False)
@@ -180,13 +174,12 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
         found = False
         while found is False:
             try:
-                soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+                soup = load_site(url)
                 for link in soup.find_all('a'):
                     link = link.get('href')
                     if fnmatch.fnmatch(link, url_nr_sitting):
                         link = url_home_link + link
-
-                        soup = bs4.BeautifulSoup(requests.get(link, verify=True).text, 'html.parser')
+                        soup = load_site(link)
 
                         for party in soup.find_all('a'):
                             party = party.get('href')
@@ -197,7 +190,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                                 found_party_name = party[party.index('&KodKlubu='):]
                                 found_party_name = found_party_name[found_party_name.index('='):].strip('=')
 
-                                dataframe = pd.read_html(party_link, encoding='utf-8')[0]
+                                dataframe = load_dataframe_with_pandas(party_link)
                                 dataframe_left = dataframe['Nazwisko i imię'].tolist()
                                 dataframe_right = dataframe['Nazwisko i imię.1'].tolist()
 
@@ -243,32 +236,26 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
 
             while found_voting is False:
                 try:
-                    soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+                    soup = load_site(url)
                     print(url)
-
                     for link in soup.find_all('a'):
                         link = link.get('href')
                         if fnmatch.fnmatch(link, temp_sitting_link):
                             found_voting = True
                             id_votes_list = []
-
-                            temp_sitting_link = temp_sitting_link.strip(id_dep)
                             id_posiedzenia = link[link.index('IdDnia='):].strip('IdDnia=')
 
                             temp_link = url_home_link + link
+                            soup = load_site(temp_link)
                             print(temp_link)
-
-                            soup = bs4.BeautifulSoup(requests.get(temp_link, verify=True).text, 'html.parser')
 
                             header_tag = soup.find('h1').get_text()
                             full_name = header_tag[:header_tag.index('Głosowania')]
-
                             name = get_name(full_name)
                             last_name = get_last_name(full_name)
                             new_full_name = f"{last_name} {name}"
 
                             date = header_tag[header_tag.index('dniu '):header_tag.index(' na')].strip('dniu ')
-
                             year = date[date.index('-') + 4:]
                             month = date[date.index('-'):date.index('-') + 4].strip('-')
                             day = date[:date.index('-')]
@@ -276,7 +263,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
 
                             id_deputies_party = check_deputies_party_id(temp_link, new_full_name)
 
-                            dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
+                            dataframe = load_dataframe_with_pandas(temp_link)
                             del dataframe['Godzina']
                             dataframe.insert(0, 'id_partia', id_deputies_party)
                             dataframe.insert(1, 'id_posel', id_deputy)
@@ -303,6 +290,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                             dataframe['data_glosu'] = dataframe['data_glosu'].fillna(method='ffill')
 
                             joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
+                            temp_sitting_link.strip(id_dep)
 
                     if found_voting is False:
                         print("Couldn\'t load voting, loading again")

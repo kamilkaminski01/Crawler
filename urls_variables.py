@@ -1,4 +1,4 @@
-import mysql.connector  # noqa
+import mysql.connector
 
 # import pymysql
 
