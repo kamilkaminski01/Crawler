@@ -6,7 +6,7 @@ import requests  # type: ignore
 
 from urls_variables import (url_deputies, url_deputy, url_home_link,
                             url_home_link2, url_nr_sitting, url_party_voting,
-                            url_sitting, url_voting)
+                            url_sitting, url_vote_deputy, url_voting)
 from utils import (get_id_deputies_list, get_id_sittings_list, get_last_name,
                    get_name, get_parties_from_database,
                    get_votes_from_database)
@@ -30,11 +30,11 @@ def get_parties():
                 if fnmatch.fnmatch(link, url_nr_sitting):
                     link = url_home_link + link
                     dataframe = pd.read_html(link, encoding='utf-8')[0]
-                    partie = dataframe['Klub/Koło'].tolist()
+                    parties = dataframe['Klub/Koło'].tolist()
 
-                    for partia in partie:
-                        if partia not in party_names:
-                            party_names.append(partia)
+                    for party in parties:
+                        if party not in party_names:
+                            party_names.append(party)
                     break
         except Exception as e:
             print(f"Get parties: {e}")
@@ -63,6 +63,7 @@ def get_sittings():
     }
 
     id_sittings_list = get_id_sittings_list()
+    dataframe = pd.DataFrame()
     try:
         dataframe = pd.read_html(url_sitting, encoding='utf-8')[0]
         dataframe = dataframe.drop(['Liczba głosowań', 'Unnamed: 3'], axis=1)
@@ -75,14 +76,14 @@ def get_sittings():
         for date in date_list:
             date = date.strip(' r.')
             date = date.replace(' ', '-')
-            for word, replacment in months.items(): date = date.replace(word, replacment)
-            if len(date) == 9: date = '0' + date
+            for word, replacment in months.items():
+                date = date.replace(word, replacment)
+            if len(date) == 9: date = f"0{date}"
 
             year = date[date.index('-') + 4:]
             month = date[date.index('-'):date.index('-') + 4].strip('-')
             day = date[:date.index('-')]
             date = year + '-' + month + '-' + day
-
             new_date_list.append(date)
 
         date_column = dataframe.columns[1]
@@ -90,13 +91,12 @@ def get_sittings():
         dataframe[date_column] = new_date_list
         dataframe['id'] = id_sittings_list
         dataframe = dataframe[['id', 'nr_posiedzenia', 'data']]
-
-        # dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
-        # dataframe['id'] = dataframe['id'].astype(int)
+        dataframe['nr_posiedzenia'] = dataframe['nr_posiedzenia'].astype(int)
+        dataframe['id'] = dataframe['id'].astype(int)
     except Exception as e:
         print(f"Get sittings: {e}")
 
-    print('Pobrane')
+    print("Downloaded")
     # return dataframe.to_csv('posiedzenia.csv', index=False)
     return dataframe
 
@@ -107,27 +107,26 @@ def get_votings():
     column_names = ['id_posiedzenia', 'nr_glosowania', 'opis']
     joined_dataframe = pd.DataFrame(columns=column_names)
 
-    id_posiedzen_list = get_id_sittings_list()
+    id_sittings_list = get_id_sittings_list()
 
-    for id in id_posiedzen_list:
-        url_voting += id
-        print(url_voting)
+    for id in id_sittings_list:
+        url = url_voting + id
+        print(url)
 
         try:
-            dataframe = pd.read_html(url_voting, encoding='utf-8')[0]
+            dataframe = pd.read_html(url, encoding='utf-8')[0]
             del dataframe['Godzina']
             dataframe = dataframe.rename(columns={'Nr': 'nr_glosowania', 'Temat': 'opis'})
             dataframe.insert(1, 'id_posiedzenia', id)
             joined_dataframe = pd.concat([joined_dataframe, pd.DataFrame.from_records(dataframe)])
-            url_voting = url_voting.strip(id)
+            url.strip(id)
         except Exception as e:
             print(f"Get votings: {e}")
             continue
 
-    # joined_dataframe['id_posiedzenia'] = joined_dataframe['id_posiedzenia'].astype(int)
-    # joined_dataframe['nr_glosowania'] = joined_dataframe['nr_glosowania'].astype(int)
-
-    print('Downloaded')
+    joined_dataframe['id_posiedzenia'] = joined_dataframe['id_posiedzenia'].astype(int)
+    joined_dataframe['nr_glosowania'] = joined_dataframe['nr_glosowania'].astype(int)
+    print("Downloaded")
     # return joined_dataframe.to_csv('glosowanie.csv', index=False)
     return joined_dataframe
 
@@ -165,7 +164,7 @@ def get_deputies():
         print(f"Get deputies: {e}")
         pass
 
-    print('Downloaded')
+    print("Downloaded")
     # return dataframe.to_csv('poslowie.csv', index=False)
     return dataframe
 
@@ -174,7 +173,6 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
     print("Checking votes...")
     id_deputies_list = []
     id_sittings_list = []
-    url_vote_deputy = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
 
     votes_database_table = get_votes_from_database()
 
@@ -193,13 +191,13 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                         for party in soup.find_all('a'):
                             party = party.get('href')
                             if fnmatch.fnmatch(party, url_party_voting):
-                                partia_link = url_home_link + party
-                                print(partia_link)
+                                party_link = url_home_link + party
+                                print(party_link)
 
                                 found_party_name = party[party.index('&KodKlubu='):]
                                 found_party_name = found_party_name[found_party_name.index('='):].strip('=')
 
-                                dataframe = pd.read_html(partia_link, encoding='utf-8')[0]
+                                dataframe = pd.read_html(party_link, encoding='utf-8')[0]
                                 dataframe_left = dataframe['Nazwisko i imię'].tolist()
                                 dataframe_right = dataframe['Nazwisko i imię.1'].tolist()
 
@@ -207,7 +205,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                                 for deputy in deputies:
                                     if deputy == name:
                                         found = True
-                                        print(full_name + ' ' + found_party_name)
+                                        print(f"{full_name} {found_party_name}")
                                         break
                                 pass
                             if found: break
@@ -236,17 +234,17 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
         id_deputies_list.append(j)
 
     for id_deputy in id_deputies_list:
-        url_vote_deputy += id_deputy
+        url = url_vote_deputy + id_deputy
 
         for id_dep in id_sittings_list:
             counter = 0
             found_voting = False
-            temp_sitting_link = '*IdDnia=' + id_dep
+            temp_sitting_link = f"*IdDnia={id_dep}"
 
             while found_voting is False:
                 try:
-                    soup = bs4.BeautifulSoup(requests.get(url_vote_deputy, verify=True).text, 'html.parser')
-                    print(url_vote_deputy)
+                    soup = bs4.BeautifulSoup(requests.get(url, verify=True).text, 'html.parser')
+                    print(url)
 
                     for link in soup.find_all('a'):
                         link = link.get('href')
@@ -267,7 +265,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
 
                             name = get_name(full_name)
                             last_name = get_last_name(full_name)
-                            new_full_name = last_name + ' ' + name
+                            new_full_name = f"{last_name} {name}"
 
                             date = header_tag[header_tag.index('dniu '):header_tag.index(' na')].strip('dniu ')
 
@@ -276,11 +274,11 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                             day = date[:date.index('-')]
                             date = year + '-' + month + '-' + day
 
-                            id_partii_posla = check_deputies_party_id(temp_link, new_full_name)
+                            id_deputies_party = check_deputies_party_id(temp_link, new_full_name)
 
                             dataframe = pd.read_html(temp_link, encoding='utf-8')[0]
                             del dataframe['Godzina']
-                            dataframe.insert(0, 'id_partia', id_partii_posla)
+                            dataframe.insert(0, 'id_partia', id_deputies_party)
                             dataframe.insert(1, 'id_posel', id_deputy)
                             dataframe = dataframe.rename(columns={'Numer': 'nr_glosowania', 'Wynik': 'glos', 'Temat': 'opis'})
                             dataframe = dataframe[:-1]
@@ -318,8 +316,8 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                     print(f"Get votes: {e}")
                     continue
 
-        url_vote_deputy = url_vote_deputy.strip(id_deputy)
+        url.strip(id_deputy)
 
-    print('Downloaded')
+    print("Downloaded")
     # joined_dataframe.to_csv('glosy.csv', index=False)
     return joined_dataframe
