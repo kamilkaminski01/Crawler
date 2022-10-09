@@ -71,15 +71,18 @@ def votes_gui(choice):
 
     id_deputy_from = votes_id_deputy_text_box_from.get()
     id_deputy_to = votes_id_deputy_text_box_to.get()
-
     id_sitting_from = votes_id_sitting_text_box_from.get()
     id_sitting_to = id_sitting_text_box_to.get()
 
-    if len(id_deputy_from) == 1: id_deputy_from = f"00{id_deputy_from}"
-    elif len(id_deputy_from) == 2: id_deputy_from = f"0{id_deputy_from}"
+    if len(id_deputy_from) == 1:
+        id_deputy_from = f"00{id_deputy_from}"
+    elif len(id_deputy_from) == 2:
+        id_deputy_from = f"0{id_deputy_from}"
 
-    if len(id_deputy_to) == 1: id_deputy_to = f"00{id_deputy_to}"
-    if len(id_deputy_to) == 2: id_deputy_to = f"0{id_deputy_to}"
+    if len(id_deputy_to) == 1:
+        id_deputy_to = f"00{id_deputy_to}"
+    elif len(id_deputy_to) == 2:
+        id_deputy_to = f"0{id_deputy_to}"
 
     if choice == 1:
         votes_dataframe = get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to)

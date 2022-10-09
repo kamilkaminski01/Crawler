@@ -1,4 +1,5 @@
 import fnmatch
+import warnings
 
 import pandas as pd
 
@@ -9,6 +10,8 @@ from utils import (get_id_deputies_list, get_id_sittings_list, get_last_name,
                    get_name, get_parties_from_database,
                    get_votes_from_database, load_dataframe_with_pandas,
                    load_site)
+
+warnings.simplefilter(action="ignore", category=UserWarning)
 
 
 def get_parties():
@@ -185,7 +188,6 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                             party = party.get('href')
                             if fnmatch.fnmatch(party, url_party_voting):
                                 party_link = url_home_link + party
-                                print(party_link)
 
                                 found_party_name = party[party.index('&KodKlubu='):]
                                 found_party_name = found_party_name[found_party_name.index('='):].strip('=')
@@ -293,7 +295,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                             temp_sitting_link.strip(id_dep)
 
                     if found_voting is False:
-                        print("Couldn\'t load voting, loading again")
+                        print("Couldn\'t find deputies voting site, searching again...")
                         counter += 1
                         if counter == 3:
                             print("Deputy was absent in this voting")

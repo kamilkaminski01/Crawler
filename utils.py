@@ -28,7 +28,10 @@ def load_dataframe_with_pandas(url):
             return dataframe
         except Exception as e:
             print(f"Loading dataframe failed: {e}")
-            continue
+            if len(e.args) > 0 and e.args[0] == "No tables found":
+                loaded = True
+            else:
+                continue
 
 
 def get_id_sittings_list():
