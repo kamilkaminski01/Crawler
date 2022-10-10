@@ -188,6 +188,7 @@ def get_votes(id_deputy_from, id_deputy_to, id_sitting_from, id_sitting_to):
                             party = party.get('href')
                             if fnmatch.fnmatch(party, url_party_voting):
                                 party_link = url_home_link + party
+                                print(party_link)
 
                                 found_party_name = party[party.index('&KodKlubu='):]
                                 found_party_name = found_party_name[found_party_name.index('='):].strip('=')
