@@ -1,4 +1,4 @@
-import mysql.connector  # type: ignore
+import mysql.connector
 
 # import pymysql
 
@@ -10,15 +10,14 @@ url_sitting = "https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=posglos&NrKade
 url_voting = "https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=listaglos&IdDnia="
 url_deputies = "https://www.sejm.gov.pl/Sejm9.nsf/poslowie.xsp?type=C"
 url_deputy = "*posel.xsp?id=*"
-url_vote_deputy = 'https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl='
+url_vote_deputy = (
+    "https://www.sejm.gov.pl/Sejm9.nsf/agent.xsp?symbol=POSELGL&NrKadencji=9&Nrl="
+)
 
 
 # Połączenie do lokalnej bazy danych MySQL
 db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    passwd="kamil123",
-    database="testdatabase"
+    host="localhost", user="root", passwd="kamil123", database="testdatabase"
 )
 
 # Połączenie do bazy danych MySQL w AWS
